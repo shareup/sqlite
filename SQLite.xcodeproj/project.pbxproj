@@ -11,8 +11,14 @@
 		571C8C922036DA620096BCBC /* SQLite+DatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571C8C912036DA620096BCBC /* SQLite+DatabaseTests.swift */; };
 		57747C772036E75D008D13D2 /* SQLite+Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57747C762036E75D008D13D2 /* SQLite+Error.swift */; };
 		57747C792039B373008D13D2 /* SQLite+Value.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57747C782039B373008D13D2 /* SQLite+Value.swift */; };
+		57B6F0F82126D712005F1B9E /* SQLite+DateFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B6F0F72126D712005F1B9E /* SQLite+DateFormatterTests.swift */; };
 		57CCD90A2036DF6D001D0E23 /* SQLite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CCD9092036DF6D001D0E23 /* SQLite.swift */; };
 		57CCD9112036E562001D0E23 /* SQLite+Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CCD9102036E562001D0E23 /* SQLite+Database.swift */; };
+		57DC16A02111B01A00BF7D43 /* SQLite+Decoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC169E2111B01A00BF7D43 /* SQLite+Decoder.swift */; };
+		57DC16A12111B01A00BF7D43 /* SQLite+Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC169F2111B01A00BF7D43 /* SQLite+Encoder.swift */; };
+		57DC16A42111B04800BF7D43 /* SQLite+CodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC16A22111B04800BF7D43 /* SQLite+CodableTests.swift */; };
+		57DC16A52111B04800BF7D43 /* TestCodableType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC16A32111B04800BF7D43 /* TestCodableType.swift */; };
+		57DC16A72111B07900BF7D43 /* SQLite+DateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57DC16A62111B07900BF7D43 /* SQLite+DateFormatter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,9 +44,15 @@
 		57747C762036E75D008D13D2 /* SQLite+Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Error.swift"; sourceTree = "<group>"; };
 		57747C782039B373008D13D2 /* SQLite+Value.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Value.swift"; sourceTree = "<group>"; };
 		5785BCFD20DD85BA00008F0A /* release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = release.xcconfig; sourceTree = "<group>"; };
+		57B6F0F72126D712005F1B9E /* SQLite+DateFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+DateFormatterTests.swift"; sourceTree = "<group>"; };
 		57CCD9072036DC77001D0E23 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		57CCD9092036DF6D001D0E23 /* SQLite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLite.swift; sourceTree = "<group>"; };
 		57CCD9102036E562001D0E23 /* SQLite+Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Database.swift"; sourceTree = "<group>"; };
+		57DC169E2111B01A00BF7D43 /* SQLite+Decoder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "SQLite+Decoder.swift"; sourceTree = "<group>"; };
+		57DC169F2111B01A00BF7D43 /* SQLite+Encoder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "SQLite+Encoder.swift"; sourceTree = "<group>"; };
+		57DC16A22111B04800BF7D43 /* SQLite+CodableTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "SQLite+CodableTests.swift"; sourceTree = "<group>"; };
+		57DC16A32111B04800BF7D43 /* TestCodableType.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TestCodableType.swift; sourceTree = "<group>"; };
+		57DC16A62111B07900BF7D43 /* SQLite+DateFormatter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "SQLite+DateFormatter.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +99,9 @@
 				57CCD9062036DC77001D0E23 /* Resources */,
 				57CCD9092036DF6D001D0E23 /* SQLite.swift */,
 				57CCD9102036E562001D0E23 /* SQLite+Database.swift */,
+				57DC16A62111B07900BF7D43 /* SQLite+DateFormatter.swift */,
+				57DC169E2111B01A00BF7D43 /* SQLite+Decoder.swift */,
+				57DC169F2111B01A00BF7D43 /* SQLite+Encoder.swift */,
 				57747C762036E75D008D13D2 /* SQLite+Error.swift */,
 				57747C782039B373008D13D2 /* SQLite+Value.swift */,
 			);
@@ -97,7 +112,10 @@
 			isa = PBXGroup;
 			children = (
 				571C8C932036DA620096BCBC /* Info.plist */,
+				57DC16A22111B04800BF7D43 /* SQLite+CodableTests.swift */,
 				571C8C912036DA620096BCBC /* SQLite+DatabaseTests.swift */,
+				57B6F0F72126D712005F1B9E /* SQLite+DateFormatterTests.swift */,
+				57DC16A32111B04800BF7D43 /* TestCodableType.swift */,
 			);
 			path = SQLiteTests;
 			sourceTree = "<group>";
@@ -179,7 +197,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 0940;
+				LastUpgradeCheck = 1000;
 				ORGANIZATIONNAME = "Shareup Software Corporation";
 				TargetAttributes = {
 					571C8C822036DA620096BCBC = {
@@ -234,9 +252,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57DC16A12111B01A00BF7D43 /* SQLite+Encoder.swift in Sources */,
+				57DC16A72111B07900BF7D43 /* SQLite+DateFormatter.swift in Sources */,
 				57747C772036E75D008D13D2 /* SQLite+Error.swift in Sources */,
 				57CCD9112036E562001D0E23 /* SQLite+Database.swift in Sources */,
 				57CCD90A2036DF6D001D0E23 /* SQLite.swift in Sources */,
+				57DC16A02111B01A00BF7D43 /* SQLite+Decoder.swift in Sources */,
 				57747C792039B373008D13D2 /* SQLite+Value.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -245,7 +266,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57B6F0F82126D712005F1B9E /* SQLite+DateFormatterTests.swift in Sources */,
+				57DC16A42111B04800BF7D43 /* SQLite+CodableTests.swift in Sources */,
 				571C8C922036DA620096BCBC /* SQLite+DatabaseTests.swift in Sources */,
+				57DC16A52111B04800BF7D43 /* TestCodableType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
