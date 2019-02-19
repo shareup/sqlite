@@ -3,13 +3,24 @@ import SQLite3
 
 extension SQLite {
     public enum Error: Swift.Error {
+        case onInternalError(String)
         case onOpen(Int32, String)
         case onClose(Int32)
         case onPrepareStatement(Int32, String)
         case onGetParameterIndex(String)
         case onBindParameter(Int32, Int32, SQLite.Value)
         case onStep(Int32, String)
+        case onWrite(Array<SQLiteRow>)
         case onGetColumnType(Int32)
+        case onCreateFunction(String, Int32)
+        case onRemoveFunction(String, Int32)
+        case onGetColumnInTable(String)
+        case onGetIndexInTable(String)
+        case onInvalidTableName(String)
+        case onDecodingRow(String)
+        case onInvalidDecodingType(String)
+        case onInvalidSelectStatementColumnCount
+        case onObserveWithoutColumnMetadata
     }
 }
 
@@ -20,6 +31,8 @@ extension SQLite.Error: CustomStringConvertible {
         }
 
         switch self {
+        case .onInternalError(let error):
+            return "Internal error: '\(error)'"
         case .onOpen(let code, let path):
             return "Could not open database at '\(path)': \(string(for: code))"
         case .onClose(let code):
@@ -32,8 +45,28 @@ extension SQLite.Error: CustomStringConvertible {
             return "Could not bind \(value) to \(index): \(string(for: code))"
         case .onStep(let code, let sql):
             return "Could not execute SQL '\(sql)': \(string(for: code))"
+        case .onWrite(let result):
+            return "Write returned results: '\(result)'"
         case .onGetColumnType(let type):
             return "Invalid column type: \(type)"
+        case .onCreateFunction(let name, let code):
+            return "Could not create function '\(name)': \(string(for: code))"
+        case .onRemoveFunction(let name, let code):
+            return "Could not remove function '\(name)': \(string(for: code))"
+        case .onGetColumnInTable(let error):
+            return "Could not get column in table: \(error)"
+        case .onGetIndexInTable(let error):
+            return "Could not get index in table: \(error)"
+        case .onInvalidTableName(let tableName):
+            return "'\(tableName)' is not a valid table name"
+        case .onDecodingRow(let valueName):
+            return "Could not decode value for '\(valueName)'"
+        case .onInvalidDecodingType(let typeDescription):
+            return "Could not decode value of type '\(typeDescription)'"
+        case .onInvalidSelectStatementColumnCount:
+            return "A SELECT statement must contain at least one result column"
+        case .onObserveWithoutColumnMetadata:
+            return "Could not observe database because SQLite was not compiled with SQLITE_ENABLE_COLUMN_METADATA"
         }
     }
 }

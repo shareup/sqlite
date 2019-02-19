@@ -1,29 +1,30 @@
 import XCTest
 import SQLite3
-import SQLite
+@testable import SQLite
 
 class SQLiteDatabaseTests: XCTestCase {
-    var directory: String!
-    var path: String!
     var database: SQLite.Database!
     
     override func setUp() {
         super.setUp()
-        directory = temporaryDirectory()
-        path = (directory as NSString).appendingPathComponent("test.db")
-        createDirectory(at: directory)
-        database = try! SQLite.Database(path: path)
+        database = try! SQLite.Database(path: ":memory:")
     }
     
     override func tearDown() {
         super.tearDown()
         database.close()
-        removeDirectory(at: directory)
     }
 
     func testDatabaseIsCreated() {
-        XCTAssertNotNil(database)
+        let directory = temporaryDirectory()
+        let path = (directory as NSString).appendingPathComponent("test.db")
+        createDirectory(at: directory)
+
+        let database = try! SQLite.Database(path: path)
         XCTAssertTrue(FileManager().fileExists(atPath: path))
+
+        database.close()
+        removeDirectory(at: directory)
     }
 
     func testUserVersion() {
@@ -35,8 +36,25 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testCreateTable() {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
-        let tableNames = try! _tableNames(in: database)
+        let tableNames = try! database.tables()
         XCTAssertEqual("test", tableNames[0])
+    }
+
+    func testTablesAndColumns() {
+        let createTest2 = """
+        CREATE TABLE test2 (
+            name TEXT PRIMARY KEY NOT NULL,
+            avatar BLOB NOT NULL
+        );
+        """
+        XCTAssertNoThrow(try database.execute(raw: _createTableForTestingUniqueColumns))
+        XCTAssertNoThrow(try database.execute(raw: _createUniqueIndexDoubleIndex))
+        XCTAssertNoThrow(try database.execute(raw: createTest2))
+
+        let expected = ["test", "test2"]
+        XCTAssertEqual(expected, try! database.tables())
+        XCTAssertEqual(["id1", "uniqueText", "uniqueIndexDouble", "normalDouble"], try! database.columns(in: "test"))
+        XCTAssertEqual(["name", "avatar"], try! database.columns(in: "test2"))
     }
 
     func testInsertAndFetchBlob() {
@@ -82,6 +100,26 @@ class SQLiteDatabaseTests: XCTestCase {
             XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .text(id)]))
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
+        }
+    }
+
+    func testInsertAndFetchSQLiteTransformable() {
+        let one = Transformable(name: "one", age: 1, jobTitle: "boss")
+        let two = Transformable(name: "two", age: 2)
+
+        XCTAssertNoThrow(try database.execute(raw: Transformable.createTable))
+        XCTAssertNoThrow(try database.write(Transformable.insert, arguments: one.asArguments))
+        XCTAssertNoThrow(try database.write(Transformable.insert, arguments: two.asArguments))
+
+        for (name, target) in ["two": two, "three": nil, "one": one] {
+            var fetched: Array<Transformable> = []
+            XCTAssertNoThrow(fetched = try database.read(Transformable.fetchByName, arguments: ["name": .text(name)]))
+            if let target = target {
+                XCTAssertEqual(1, fetched.count)
+                XCTAssertEqual(target, fetched[0])
+            } else {
+                XCTAssertEqual(0, fetched.count)
+            }
         }
     }
 
@@ -309,14 +347,6 @@ extension SQLiteDatabaseTests {
 
     fileprivate var _textData: Data {
         return _text.data(using: .utf8)!
-    }
-}
-
-extension SQLiteDatabaseTests {
-    fileprivate func _tableNames(in database: SQLite.Database) throws -> Array<String> {
-        let sql = "SELECT * FROM sqlite_master WHERE type='table';"
-        let tablesResult = try database.execute(raw: sql)
-        return tablesResult.compactMap { $0["tbl_name"]?.stringValue }
     }
 }
 
