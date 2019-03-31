@@ -221,16 +221,17 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 1010;
+				LastUpgradeCheck = 1020;
 				ORGANIZATIONNAME = "Shareup Software Corporation";
 				TargetAttributes = {
 					571C8C822036DA620096BCBC = {
 						CreatedOnToolsVersion = 9.2;
-						LastSwiftMigration = 0920;
+						LastSwiftMigration = 1020;
 						ProvisioningStyle = Automatic;
 					};
 					571C8C8B2036DA620096BCBC = {
 						CreatedOnToolsVersion = 9.2;
+						LastSwiftMigration = 1020;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -241,6 +242,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 571C8C792036DA620096BCBC;
 			productRefGroup = 571C8C842036DA620096BCBC /* Products */;
@@ -333,7 +335,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 575DCD3620AA2C00007BE521 /* sqlite-debug.xcconfig */;
 			buildSettings = {
-				SWIFT_COMPILATION_MODE = singlefile;
 			};
 			name = Debug;
 		};
@@ -341,7 +342,6 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 575DCD3820AA2C00007BE521 /* sqlite-release.xcconfig */;
 			buildSettings = {
-				SWIFT_COMPILATION_MODE = singlefile;
 			};
 			name = Release;
 		};
