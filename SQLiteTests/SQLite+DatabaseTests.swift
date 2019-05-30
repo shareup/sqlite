@@ -34,6 +34,10 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(123, database.userVersion)
     }
 
+    func testSupportsJSON() {
+        XCTAssertTrue(database.supportsJSON)
+    }
+
     func testCreateTable() {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         let tableNames = try! database.tables()
@@ -171,6 +175,48 @@ class SQLiteDatabaseTests: XCTestCase {
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
         }
+    }
+
+    func testInsertAndFetchValidJSON() {
+        guard database.supportsJSON else { return XCTFail() }
+
+        let json = """
+            {
+                "text": "This is some text",
+                "number": 1234.03,
+                "array": [
+                    true,
+                    false
+                ],
+                "object": {
+                    "inner": null
+                }
+            }
+            """
+
+        do {
+            let write: SQL = "INSERT INTO test VALUES (:id, json(:string));"
+            let read: SQL = "SELECT json_extract(string, '$.text') AS text FROM test WHERE id=:id;"
+
+            try database.execute(raw: _createTableWithIDAsStringAndNullableString)
+            try database.write(write, arguments: ["id": .text("1"), "string": .text(json)])
+            let result = try database.read(read, arguments: ["id": .text("1")])
+            XCTAssertEqual(1, result.count)
+            XCTAssertEqual(SQLite.Value.text("This is some text"), result[0]["text"])
+        } catch {
+            XCTFail(String(describing: error))
+        }
+    }
+
+    func testInsertInvalidJSON() {
+        guard database.supportsJSON else { return XCTFail() }
+
+        try! database.execute(raw: _createTableWithIDAsStringAndNullableString)
+
+        let invalidJSON = "\"text\": What is this supposed to be?"
+        let write: SQL = "INSERT INTO test VALUES (:id, json(:string));"
+        let args: SQLiteArguments = ["id": .text("1"), "string": .text(invalidJSON)]
+        XCTAssertThrowsError(try database.write(write, arguments: args))
     }
 
     func testInsertFloatStringAndDataInTransaction() {
@@ -328,11 +374,11 @@ extension SQLiteDatabaseTests {
     }
 
     fileprivate var _insertIDAndString: String {
-        return "INSERT INTO test VALUES (:id, :string)"
+        return "INSERT INTO test VALUES (:id, :string);"
     }
 
     fileprivate var _insertOrReplaceIDAndString: String {
-        return "INSERT OR REPLACE INTO test VALUES (:id, :string)"
+        return "INSERT OR REPLACE INTO test VALUES (:id, :string);"
     }
 
     fileprivate var _selectWhereID: String {

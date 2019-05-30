@@ -204,6 +204,16 @@ extension SQLite.Database: Equatable {
 }
 
 extension SQLite.Database {
+    public var supportsJSON: Bool {
+        return isCompileOptionEnabled("ENABLE_JSON1")
+    }
+
+    public func isCompileOptionEnabled(_ name: String) -> Bool {
+        return sqlite3_compileoption_used(name) == 1
+    }
+}
+
+extension SQLite.Database {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
             guard let tableName = tableName else { return }
