@@ -16,6 +16,7 @@ extension SQLite {
         case onRemoveFunction(String, Int32)
         case onGetColumnInTable(String)
         case onGetIndexInTable(String)
+        case onGetSQL
         case onInvalidTableName(String)
         case onDecodingRow(String)
         case onInvalidDecodingType(String)
@@ -57,6 +58,8 @@ extension SQLite.Error: CustomStringConvertible {
             return "Could not get column in table: \(error)"
         case .onGetIndexInTable(let error):
             return "Could not get index in table: \(error)"
+        case .onGetSQL:
+            return "Could not get SQL for prepared statement"
         case .onInvalidTableName(let tableName):
             return "'\(tableName)' is not a valid table name"
         case .onDecodingRow(let valueName):
