@@ -14,7 +14,7 @@ class QueryPlanParserTests: XCTestCase {
     func testColumnsFromMultipleTables() {
         let tables = ["✌🏼 table", "first table", "sqlite_autoindex_✌🏼 table_1", "USING"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
-            (5, 0, 0, "SEARCH TABLE ✌🏼 table USING INDEX sqlite_autoindex_✌🏼 table_1 (id column=?)"),
+            (1, 0, 0, "SEARCH TABLE ✌🏼 table USING INDEX sqlite_autoindex_✌🏼 table_1 (id column=?)"),
             (4, 0, 0, "SEARCH TABLE first table USING INDEX sqlite_autoindex_first table_1 (id column=?)")
         ])
         let expected: Set<String> = ["first table", "✌🏼 table"]
@@ -22,8 +22,8 @@ class QueryPlanParserTests: XCTestCase {
         XCTAssertEqual(expected, actual)
     }
 
-    func testColumnsWithMergesAndJoins() {
-        let tables = ["text_messages", "patients", "providers", "AS", "|||"]
+    func testColumnsWithMergesJoinsAndJSON() {
+        let tables = ["AS", "text_messages", "providers", "patients", "|||"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
             (1, 0, 0, "MERGE (UNION ALL)"),
             (3, 1, 0, "LEFT"),
@@ -35,6 +35,30 @@ class QueryPlanParserTests: XCTestCase {
             (66, 52, 0, "SCAN TABLE json_each AS USING VIRTUAL TABLE INDEX 1:"),
         ])
         let expected: Set<String> = ["text_messages", "patients"]
+        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        XCTAssertEqual(expected, actual)
+    }
+
+    func testColumnsWithSimilarNames() {
+        let tables = ["a", "ab", "abc", "abcd"]
+        let queryPlan: Array<SQLiteRow> = self.queryPlan([
+            (1, 0, 0, "SCAN TABLE a"),
+            (3, 1, 0, "SCAN TABLE abcd"),
+            (10, 3, 0, "SEARCH TABLE ab USING INDEX ab_index"),
+        ])
+        let expected: Set<String> = ["a", "ab", "abcd"]
+        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        XCTAssertEqual(expected, actual)
+    }
+
+    func testColumnsWithReservedWordsAndControlCharacters() {
+        let tables = ["USING", "| |", "AS", "&&", "||", "USING AS"]
+        let queryPlan: Array<SQLiteRow> = self.queryPlan([
+            (1, 0, 0, "SEARCH TABLE USING AS USING USING_AS_index"),
+            (3, 1, 0, "SCAN TABLE &&"),
+            (10, 3, 0, "SEARCH TABLE | | USING INDEX ab_index"),
+        ])
+        let expected: Set<String> = ["USING AS", "&&", "| |"]
         let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }

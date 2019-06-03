@@ -25,7 +25,7 @@ private extension String {
         return range(of: " TABLE ")?.upperBound
     }
 
-    func tableNameEnd(startingAt start: String.Index, matching databaseTables: Set<String>) -> String.Index? {
+    func tableNameEnd(startingAt start: String.Index, matching databaseTables: Array<String>) -> String.Index? {
         for table in databaseTables {
             if let end = range(of: table, options: [.anchored], range: start..<endIndex) {
                 return end.upperBound
@@ -37,7 +37,7 @@ private extension String {
 }
 
 private extension Array where Element == String {
-    func sortedByLongestToShortest() -> Set<String> {
-        return Set(sorted(by: { $0.count > $1.count }))
+    func sortedByLongestToShortest() -> Array<String> {
+        return sorted(by: { $0.count > $1.count })
     }
 }
