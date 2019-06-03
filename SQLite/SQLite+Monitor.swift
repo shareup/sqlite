@@ -32,7 +32,7 @@ extension SQLite {
                 throw SQLite.Error.onInternalError("SQLite.Database is missing")
             }
 
-            let tables = try statement.resultTables()
+            let tables = try tablesToObserve(for: statement, in: database)
             assert(tables.isEmpty == false)
 
             if _observers.isEmpty {
@@ -92,6 +92,16 @@ extension SQLite.Monitor {
     }
 }
 
+extension SQLite.Monitor {
+    private func tablesToObserve(for statement: OpaquePointer,
+                                in database: SQLite.Database) throws -> Set<String> {
+        guard let sql = sqlite3_sql(statement) else { throw SQLite.Error.onGetSQL }
+        let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
+        let queryPlan = try database.execute(raw: explain)
+        return SQLite.QueryPlanParser.tables(in: queryPlan, matching: try database.tables())
+    }
+}
+
 private class Observers {
     private var _observers = Array<WeakObserver>()
 
@@ -121,21 +131,6 @@ private class Observers {
 
     func compact() {
         _observers = _observers.compactMap { $0.isNil ? nil : $0 }
-    }
-}
-
-private extension Statement {
-    func resultTables() throws -> Set<String> {
-        let count = sqlite3_column_count(self)
-        guard count > 0 else { throw SQLite.Error.onInvalidSelectStatementColumnCount }
-
-        var tables = Set<String>()
-        try (0..<count).forEach { (column: Int32) in
-            let tableName = String(cString: sqlite3_column_table_name(self, column))
-            guard tableName.isEmpty == false else { throw SQLite.Error.onInvalidTableName(tableName) }
-            tables.insert(tableName)
-        }
-        return tables
     }
 }
 
