@@ -45,51 +45,25 @@ class SQLitePublisherTests: XCTestCase {
     }
 
     func testCancellingSinkCancelsSubscriptions() {
-        let expectation = self.expectation(description: "Timeout called")
-
-        var expected: Array<Array<Person>> = [[_person1, _person2]]
-
-        let receiveCompletion: (Subscribers.Completion<Error>) -> Void = { completion in
-            XCTFail("Should not receive completion: \(String(describing: completion))")
-        }
-
-        let receiveValue: (Array<Person>) -> Void = { people in
-            let first = expected.removeFirst()
-            XCTAssertEqual(first, people)
-        }
-
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let sink = publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        let sink = self.sink(for: publisher, expecting: [[_person1, _person2]])
+
+        self.do({
             sink.cancel()
             try! self.database.write(Person.deleteWithID, arguments: ["id": .text(self._person1.id)])
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { expectation.fulfill() }
-        }
-        waitForExpectations(timeout: 0.5)
+        }, after: 0.05, thenWait: 0.1)
     }
 
     func testDeleteAsSQLiteRow() {
         let expectation = self.expectation(description: "Received two notifications")
 
-        var expected: Array<Array<SQLiteRow>> = [
+        let expected: Array<Array<SQLiteRow>> = [
             [_person1.asArguments, _person2.asArguments],
             [_person2.asArguments],
         ]
 
-        let receiveCompletion: (Subscribers.Completion<Error>) -> Void = { completion in
-            XCTFail("Should not receive completion: \(String(describing: completion))")
-        }
-
-        let receiveValue: (Array<SQLiteRow>) -> Void = { rows in
-            let first = expected.removeFirst()
-            XCTAssertEqual(first, rows)
-            if expected.isEmpty {
-                expectation.fulfill()
-            }
-        }
-
         let publisher: AnyPublisher<Array<SQLiteRow>, Error> = database.publisher(Person.getAll)
-        let sink = publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
@@ -98,25 +72,45 @@ class SQLitePublisherTests: XCTestCase {
     func testDelete() {
         let expectation = self.expectation(description: "Received two notifications")
 
-        var expected: Array<Array<Person>> = [
+        let expected: Array<Array<Person>> = [
             [_person1, _person2],
             [_person2],
         ]
 
-        let receiveCompletion: (Subscribers.Completion<Error>) -> Void = { completion in
-            XCTFail("Should not receive completion: \(String(describing: completion))")
-        }
-
-        let receiveValue: (Array<Person>) -> Void = { people in
-            let first = expected.removeFirst()
-            XCTAssertEqual(first, people)
-            if expected.isEmpty {
-                expectation.fulfill()
-            }
-        }
-
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let sink = publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        waitForExpectations(timeout: 0.5)
+        sink.cancel()
+    }
+
+    func testDeleteFirstWhere() {
+        let expectation = self.expectation(description: "Received two notifications")
+        let publisher: AnyPublisher<Array<Person>, Error> =
+            database.publisher(Person.getAll)
+                .first(where: { $0.count == 1 })
+                .eraseToAnyPublisher()
+
+        let sink = self.sink(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
+        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        waitForExpectations(timeout: 0.5)
+        sink.cancel()
+    }
+
+    func testDeleteMappedToName() {
+        let expectation = self.expectation(description: "Received two notifications")
+
+        let expected: Array<Array<String>> = [
+            [_person1.name, _person2.name],
+            [_person2.name],
+        ]
+
+        let publisher: AnyPublisher<Array<String>, Error> =
+            database.publisher(Person.self, Person.getAll)
+                .map { $0.map { $0.name } }
+                .eraseToAnyPublisher()
+
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
@@ -163,5 +157,50 @@ extension SQLitePublisherTests {
 
     private var _petOwner2: PetOwner {
         return PetOwner(id: "2", name: "Satya", age: 50, title: "CEO", pet: _pet2)
+    }
+}
+
+private extension SQLitePublisherTests {
+    func `do`(_ something: @escaping () -> Void, after firstCheckpoint: CFTimeInterval,
+              thenWait secondCheckpoint: CFTimeInterval) {
+        let start = CACurrentMediaTime()
+        func performOrWait(_ block: () -> Void, after seconds: CFTimeInterval) -> Bool {
+            guard CACurrentMediaTime() - start >= seconds else { return false }
+            block()
+            return true
+        }
+
+        while performOrWait(something, after: firstCheckpoint) == false {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
+        }
+
+        while performOrWait({ }, after: secondCheckpoint) == false {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
+        }
+    }
+
+    func sink<T: Equatable, E: Error>(
+        for publisher: AnyPublisher<Array<T>, E>,
+        shouldFinish: Bool = false,
+        expecting expected: Array<Array<T>>,
+        expectation: XCTestExpectation? = nil)
+        -> Subscribers.Sink<AnyPublisher<Array<T>, E>> {
+            let receiveCompletion: (Subscribers.Completion<E>) -> Void = { completion in
+                guard shouldFinish, case .finished = completion else {
+                    XCTFail("Should not receive completion: \(String(describing: completion))")
+                    return
+                }
+            }
+
+            var expected = expected
+            let receiveValue: (Array<T>) -> Void = { value in
+                let first = expected.removeFirst()
+                XCTAssertEqual(first, value)
+                if expected.isEmpty {
+                    expectation?.fulfill()
+                }
+            }
+
+            return publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
     }
 }

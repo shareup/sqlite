@@ -38,8 +38,14 @@ private extension SQLite {
     final class Subscription: Combine.Subscription {
         private let _subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>
 
-        private var _token: AnyObject?
         private var _demand: Subscribers.Demand?
+        private let _lock = Lock()
+
+        private var _tokenBackingStore: AnyObject?
+        private var _token: AnyObject? {
+            get { return _lock.locked { return _tokenBackingStore } }
+            set { _lock.locked { _tokenBackingStore = newValue } }
+        }
 
         init(subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>) {
             _subscriber = subscriber
@@ -73,5 +79,24 @@ private extension SQLite {
                 _demand = _subscriber.receive(rows)
             }
         }
+    }
+}
+
+private final class Lock {
+    private var _lock: UnsafeMutablePointer<os_unfair_lock>
+
+    init() {
+        _lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: 1)
+        _lock.initialize(to: os_unfair_lock())
+    }
+
+    deinit {
+        _lock.deallocate()
+    }
+
+    func locked<T>(_ block: () -> T) -> T {
+        os_unfair_lock_lock(_lock)
+        defer { os_unfair_lock_unlock(_lock) }
+        return block()
     }
 }

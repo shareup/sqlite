@@ -57,6 +57,7 @@ extension SQLite {
                 guard _isOpen else { return }
                 _monitor.removeAllObservers()
                 _cachedStatements.values.forEach { sqlite3_finalize($0) }
+                _cachedStatements.removeAll()
                 _isOpen = false
                 SQLite.Database.close(_connection)
             }
@@ -159,6 +160,17 @@ extension SQLite.Database {
                           queue: DispatchQueue = .main) -> AnyPublisher<Array<SQLiteRow>, Swift.Error> {
         return SQLite.Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
             .eraseToAnyPublisher()
+    }
+
+    // Swift favors type inference and, consequently, does not allow specializing functions at the call site.
+    // This means that combining multiple `Combine.Publisher` together can be frustrating because
+    // Swift can't infer the type. Adding this function that includes the generic type means we don't
+    // need to specify the type at the call site using `as Array<T>`.
+    // https://forums.swift.org/t/compiler-cannot-infer-the-type-of-a-generic-method-cannot-specialize-a-non-generic-definition/10294
+    public func publisher<T: SQLiteTransformable>
+        (_ type: T.Type, _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main)
+        -> AnyPublisher<Array<T>, Swift.Error> {
+            return publisher(sql, arguments: arguments, queue: queue) as AnyPublisher<Array<T>, Swift.Error>
     }
 
     public func publisher<T: SQLiteTransformable>(
