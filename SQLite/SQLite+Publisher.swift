@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 extension SQLite {
-    final class Publisher: Combine.Publisher {
+    struct Publisher: Combine.Publisher {
         typealias Output = Array<SQLiteRow>
         typealias Failure = Swift.Error
 
@@ -10,9 +10,6 @@ extension SQLite {
         private let _sql: SQL
         private let _arguments: SQLiteArguments
         private let _queue: DispatchQueue
-
-        private let _lock = Lock()
-        private var _subscriptions: Set<Subscription> = []
 
         init(database: Database, sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main) {
             _database = database
@@ -27,38 +24,25 @@ extension SQLite {
             }
 
             do {
-                let block: (Array<SQLiteRow>) -> Void = { [weak self] in self?.onUpdate(rows: $0) }
-                let token = try database.observe(_sql, arguments: _arguments, queue: _queue, block: block)
-                let subscription = Subscription(subscriber: subscriber.eraseToAnySubscriber(), token: token)
-                _lock.locked { _subscriptions.insert(subscription) }
+                let subscription = Subscription(subscriber: subscriber.eraseToAnySubscriber())
+                try subscription.observe(_sql, arguments: _arguments, queue: _queue, on: database)
                 subscriber.receive(subscription: subscription)
             } catch {
                 subscriber.receive(completion: .failure(error))
-            }
-        }
-
-        private func onUpdate(rows: Array<SQLiteRow>) {
-            _lock.locked {
-                _subscriptions.forEach { subscription in
-                    _queue.async {
-                        subscription.receive(rows)
-                        subscription.request(.unlimited)
-                    }
-                }
             }
         }
     }
 }
 
 private extension SQLite {
-    final class Subscription: Combine.Subscription, Hashable {
+    final class Subscription: Combine.Subscription {
         private let _subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>
+
         private var _token: AnyObject?
         private var _demand: Subscribers.Demand?
 
-        init(subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>, token: AnyObject) {
+        init(subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>) {
             _subscriber = subscriber
-            _token = token
         }
 
         func request(_ demand: Subscribers.Demand) {
@@ -69,6 +53,17 @@ private extension SQLite {
             _token = nil
         }
 
+        func observe(_ sql: SQL, arguments: SQLiteArguments, queue: DispatchQueue, on database: Database) throws {
+            let block = { (rows: Array<SQLiteRow>) -> Void in
+                queue.async { [weak self] in
+                    self?.receive(rows)
+                    self?.request(.unlimited)
+                }
+            }
+
+            _token = try database.observe(sql, arguments: arguments, queue: queue, block: block)
+        }
+
         func receive(_ rows: Array<SQLiteRow>) {
             guard _token != nil else { return }
 
@@ -77,18 +72,6 @@ private extension SQLite {
             } else {
                 _demand = _subscriber.receive(rows)
             }
-        }
-
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(_subscriber.combineIdentifier)
-        }
-
-        var description: String {
-            return _subscriber.combineIdentifier.description
-        }
-
-        static func == (lhs: Subscription, rhs: Subscription) -> Bool {
-            return lhs._subscriber.combineIdentifier == rhs._subscriber.combineIdentifier
         }
     }
 }
