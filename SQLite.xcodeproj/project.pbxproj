@@ -15,17 +15,21 @@
 		571C8C922036DA620096BCBC /* SQLite+DatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571C8C912036DA620096BCBC /* SQLite+DatabaseTests.swift */; };
 		5725C6AA22A40A9A00B73CDD /* SQLite+QueryPlanParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5725C6A922A40A9A00B73CDD /* SQLite+QueryPlanParserTests.swift */; };
 		5725C6AC22A41BE700B73CDD /* SQLite+QueryPlanParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5725C6AB22A41BE700B73CDD /* SQLite+QueryPlanParser.swift */; };
+		572EA68922AEA15E00D98320 /* SQLite+Publisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 572EA68822AEA15E00D98320 /* SQLite+Publisher.swift */; };
+		572EA68B22AEBB9600D98320 /* SQLite+PublisherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 572EA68A22AEBB9600D98320 /* SQLite+PublisherTests.swift */; };
+		572EA68E22AEBD3700D98320 /* PetOwner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 572EA68D22AEBD3700D98320 /* PetOwner.swift */; };
+		572EA69022B4F82200D98320 /* Lock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 572EA68F22B4F82200D98320 /* Lock.swift */; };
 		576E2BE32177754D00010AB3 /* SQLiteRow+ExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576E2BE22177754D00010AB3 /* SQLiteRow+ExtensionsTests.swift */; };
 		57747C772036E75D008D13D2 /* SQLite+Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57747C762036E75D008D13D2 /* SQLite+Error.swift */; };
 		57747C792039B373008D13D2 /* SQLite+Value.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57747C782039B373008D13D2 /* SQLite+Value.swift */; };
-		57767D2B21986485006906DE /* TestTransformableType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57767D2A21986485006906DE /* TestTransformableType.swift */; };
+		57767D2B21986485006906DE /* TransformableType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57767D2A21986485006906DE /* TransformableType.swift */; };
 		5790E1AB20728BBF00CE4E22 /* SQLite+Hook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5790E1AA20728BBF00CE4E22 /* SQLite+Hook.swift */; };
 		5793EF4D21BD57FA00E0FB41 /* SQLite+Observer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5793EF4C21BD57FA00E0FB41 /* SQLite+Observer.swift */; };
 		57CCD90A2036DF6D001D0E23 /* SQLite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CCD9092036DF6D001D0E23 /* SQLite.swift */; };
 		57CCD9112036E562001D0E23 /* SQLite+Database.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CCD9102036E562001D0E23 /* SQLite+Database.swift */; };
 		57F4CFA62042F47100FBC540 /* SQLite+Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4CFA52042F47100FBC540 /* SQLite+Encoder.swift */; };
 		57F4CFA82043184200FBC540 /* SQLite+CodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4CFA72043184200FBC540 /* SQLite+CodableTests.swift */; };
-		57F4CFAA204319C800FBC540 /* TestCodableType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4CFA9204319C800FBC540 /* TestCodableType.swift */; };
+		57F4CFAA204319C800FBC540 /* CodableType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F4CFA9204319C800FBC540 /* CodableType.swift */; };
 		57FEDE752174792800298A03 /* SQLiteTransformable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FEDE742174792800298A03 /* SQLiteTransformable.swift */; };
 		57FEDE7721748EB600298A03 /* SQLite+ObserveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FEDE7621748EB600298A03 /* SQLite+ObserveTests.swift */; };
 		57FEDE7921749A8C00298A03 /* SQLiteRow+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FEDE7821749A8C00298A03 /* SQLiteRow+Extensions.swift */; };
@@ -51,6 +55,10 @@
 		571C8C932036DA620096BCBC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		5725C6A922A40A9A00B73CDD /* SQLite+QueryPlanParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+QueryPlanParserTests.swift"; sourceTree = "<group>"; };
 		5725C6AB22A41BE700B73CDD /* SQLite+QueryPlanParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+QueryPlanParser.swift"; sourceTree = "<group>"; };
+		572EA68822AEA15E00D98320 /* SQLite+Publisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Publisher.swift"; sourceTree = "<group>"; };
+		572EA68A22AEBB9600D98320 /* SQLite+PublisherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+PublisherTests.swift"; sourceTree = "<group>"; };
+		572EA68D22AEBD3700D98320 /* PetOwner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetOwner.swift; sourceTree = "<group>"; };
+		572EA68F22B4F82200D98320 /* Lock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lock.swift; sourceTree = "<group>"; };
 		575DCD3520AA2C00007BE521 /* sqlitetests-debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = "sqlitetests-debug.xcconfig"; sourceTree = "<group>"; };
 		575DCD3620AA2C00007BE521 /* sqlite-debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = "sqlite-debug.xcconfig"; sourceTree = "<group>"; };
 		575DCD3720AA2C00007BE521 /* sqlitetests-release.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = "sqlitetests-release.xcconfig"; sourceTree = "<group>"; };
@@ -58,7 +66,7 @@
 		576E2BE22177754D00010AB3 /* SQLiteRow+ExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLiteRow+ExtensionsTests.swift"; sourceTree = "<group>"; };
 		57747C762036E75D008D13D2 /* SQLite+Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Error.swift"; sourceTree = "<group>"; };
 		57747C782039B373008D13D2 /* SQLite+Value.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Value.swift"; sourceTree = "<group>"; };
-		57767D2A21986485006906DE /* TestTransformableType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestTransformableType.swift; sourceTree = "<group>"; };
+		57767D2A21986485006906DE /* TransformableType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformableType.swift; sourceTree = "<group>"; };
 		5790E1AA20728BBF00CE4E22 /* SQLite+Hook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Hook.swift"; sourceTree = "<group>"; };
 		5793EF4C21BD57FA00E0FB41 /* SQLite+Observer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Observer.swift"; sourceTree = "<group>"; };
 		57C0C475221C0AEF00FE4B34 /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = debug.xcconfig; sourceTree = "<group>"; };
@@ -68,7 +76,7 @@
 		57CCD9102036E562001D0E23 /* SQLite+Database.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Database.swift"; sourceTree = "<group>"; };
 		57F4CFA52042F47100FBC540 /* SQLite+Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Encoder.swift"; sourceTree = "<group>"; };
 		57F4CFA72043184200FBC540 /* SQLite+CodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+CodableTests.swift"; sourceTree = "<group>"; };
-		57F4CFA9204319C800FBC540 /* TestCodableType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestCodableType.swift; sourceTree = "<group>"; };
+		57F4CFA9204319C800FBC540 /* CodableType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodableType.swift; sourceTree = "<group>"; };
 		57F4CFAD2046CBC700FBC540 /* SQLite+Decoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+Decoder.swift"; sourceTree = "<group>"; };
 		57FEDE742174792800298A03 /* SQLiteTransformable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteTransformable.swift; sourceTree = "<group>"; };
 		57FEDE7621748EB600298A03 /* SQLite+ObserveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SQLite+ObserveTests.swift"; sourceTree = "<group>"; };
@@ -126,6 +134,8 @@
 				5790E1AA20728BBF00CE4E22 /* SQLite+Hook.swift */,
 				5716605D206842A0000F615F /* SQLite+Monitor.swift */,
 				5793EF4C21BD57FA00E0FB41 /* SQLite+Observer.swift */,
+				572EA68822AEA15E00D98320 /* SQLite+Publisher.swift */,
+				572EA68F22B4F82200D98320 /* Lock.swift */,
 				5725C6AB22A41BE700B73CDD /* SQLite+QueryPlanParser.swift */,
 				57747C782039B373008D13D2 /* SQLite+Value.swift */,
 				57FEDE7821749A8C00298A03 /* SQLiteRow+Extensions.swift */,
@@ -137,17 +147,27 @@
 		571C8C902036DA620096BCBC /* SQLiteTests */ = {
 			isa = PBXGroup;
 			children = (
+				572EA68C22AEBD1A00D98320 /* Types */,
 				571C8C932036DA620096BCBC /* Info.plist */,
 				57F4CFA72043184200FBC540 /* SQLite+CodableTests.swift */,
 				571C8C912036DA620096BCBC /* SQLite+DatabaseTests.swift */,
 				570935742132DD7B0020EBFE /* SQLite+DateFormatterTests.swift */,
 				57FEDE7621748EB600298A03 /* SQLite+ObserveTests.swift */,
+				572EA68A22AEBB9600D98320 /* SQLite+PublisherTests.swift */,
 				5725C6A922A40A9A00B73CDD /* SQLite+QueryPlanParserTests.swift */,
 				576E2BE22177754D00010AB3 /* SQLiteRow+ExtensionsTests.swift */,
-				57F4CFA9204319C800FBC540 /* TestCodableType.swift */,
-				57767D2A21986485006906DE /* TestTransformableType.swift */,
 			);
 			path = SQLiteTests;
+			sourceTree = "<group>";
+		};
+		572EA68C22AEBD1A00D98320 /* Types */ = {
+			isa = PBXGroup;
+			children = (
+				57F4CFA9204319C800FBC540 /* CodableType.swift */,
+				572EA68D22AEBD3700D98320 /* PetOwner.swift */,
+				57767D2A21986485006906DE /* TransformableType.swift */,
+			);
+			path = Types;
 			sourceTree = "<group>";
 		};
 		57CCD9002036DC37001D0E23 /* Configurations */ = {
@@ -284,9 +304,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				57747C772036E75D008D13D2 /* SQLite+Error.swift in Sources */,
+				572EA69022B4F82200D98320 /* Lock.swift in Sources */,
 				5793EF4D21BD57FA00E0FB41 /* SQLite+Observer.swift in Sources */,
 				5790E1AB20728BBF00CE4E22 /* SQLite+Hook.swift in Sources */,
 				570935732132DD690020EBFE /* SQLite+DateFormatter.swift in Sources */,
+				572EA68922AEA15E00D98320 /* SQLite+Publisher.swift in Sources */,
 				57F4CFA62042F47100FBC540 /* SQLite+Encoder.swift in Sources */,
 				570AE18320496FB800DD6DE5 /* SQLite+Decoder.swift in Sources */,
 				57CCD9112036E562001D0E23 /* SQLite+Database.swift in Sources */,
@@ -303,14 +325,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57767D2B21986485006906DE /* TestTransformableType.swift in Sources */,
+				57767D2B21986485006906DE /* TransformableType.swift in Sources */,
 				57F4CFA82043184200FBC540 /* SQLite+CodableTests.swift in Sources */,
 				570935752132DD7B0020EBFE /* SQLite+DateFormatterTests.swift in Sources */,
 				576E2BE32177754D00010AB3 /* SQLiteRow+ExtensionsTests.swift in Sources */,
 				5725C6AA22A40A9A00B73CDD /* SQLite+QueryPlanParserTests.swift in Sources */,
-				57F4CFAA204319C800FBC540 /* TestCodableType.swift in Sources */,
+				57F4CFAA204319C800FBC540 /* CodableType.swift in Sources */,
 				57FEDE7721748EB600298A03 /* SQLite+ObserveTests.swift in Sources */,
 				571C8C922036DA620096BCBC /* SQLite+DatabaseTests.swift in Sources */,
+				572EA68B22AEBB9600D98320 /* SQLite+PublisherTests.swift in Sources */,
+				572EA68E22AEBD3700D98320 /* PetOwner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

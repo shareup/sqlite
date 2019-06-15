@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SQLite3
 
 extension SQLite {
@@ -9,9 +10,7 @@ extension SQLite {
                     guard let result = try execute(raw: "PRAGMA user_version;").first else { return 0 }
                     return result["user_version"]?.intValue ?? 0
                 } catch let error {
-                    let message = "Could not get user_version: \(error)"
-                    print(message)
-                    assertionFailure(message)
+                    assertionFailure("Could not get user_version: \(error)")
                     return 0
                 }
             }
@@ -152,6 +151,22 @@ extension SQLite.Database {
             WHERE m.type='table'
             AND m.name='\(table)';
         """
+    }
+}
+
+extension SQLite.Database {
+    public func publisher(_ sql: SQL, arguments: SQLiteArguments = [:],
+                          queue: DispatchQueue = .main) -> AnyPublisher<Array<SQLiteRow>, Swift.Error> {
+        return SQLite.Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
+            .eraseToAnyPublisher()
+    }
+
+    public func publisher<T: SQLiteTransformable>(
+        _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main)
+        -> AnyPublisher<Array<T>, Swift.Error> {
+            return SQLite.Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
+                .compactMap { $0.compactMap { try? T.init(row: $0) } }
+                .eraseToAnyPublisher()
     }
 }
 
