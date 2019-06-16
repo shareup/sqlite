@@ -177,7 +177,7 @@ extension SQLite.Database {
         _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main)
         -> AnyPublisher<Array<T>, Swift.Error> {
             return SQLite.Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
-                .compactMap { $0.compactMap { try? T.init(row: $0) } }
+                .tryMap { try $0.map { try T.init(row: $0) } }
                 .eraseToAnyPublisher()
     }
 }
