@@ -41,11 +41,7 @@ private extension SQLite {
         private var _demand: Subscribers.Demand?
         private let _lock = Lock()
 
-        private var _tokenBackingStore: AnyObject?
-        private var _token: AnyObject? {
-            get { return _lock.locked { return _tokenBackingStore } }
-            set { _lock.locked { _tokenBackingStore = newValue } }
-        }
+        @Atomic(nil) private var _token: AnyObject?
 
         init(subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>) {
             _subscriber = subscriber
@@ -79,6 +75,21 @@ private extension SQLite {
                 _demand = _subscriber.receive(rows)
             }
         }
+    }
+}
+
+@propertyWrapper
+private struct Atomic<T> {
+    var value: T {
+        get { return _lock.locked { return _value } }
+        set { _lock.locked { _value = newValue } }
+    }
+
+    private var _value: T
+    private let _lock = Lock()
+
+    init(_ initialValue: T) {
+        _value = initialValue
     }
 }
 
