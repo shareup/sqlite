@@ -2,31 +2,25 @@ import XCTest
 @testable import SQLite
 
 class SQLiteCodableTests: XCTestCase {
-    var directory: String!
-    var path: String!
     var database: SQLite.Database!
 
     override func setUp() {
         super.setUp()
-        directory = temporaryDirectory()
-        path = (directory as NSString).appendingPathComponent("test.db")
-        createDirectory(at: directory)
-        database = try! SQLite.Database(path: path)
-        try! database.execute(raw: TestCodableType.createTable)
+        database = try! SQLite.Database(path: ":memory:")
+        try! database.execute(raw: CodableType.createTable)
     }
 
     override func tearDown() {
         super.tearDown()
         database.close()
-        removeDirectory(at: directory)
     }
 
     func testEncodingWithoutNils() {
         let toEncode = _noNils
         let encoder = SQLite.Encoder(database)
-        XCTAssertNoThrow(try encoder.encode(toEncode, using: TestCodableType.insert))
+        XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
-        XCTAssertNoThrow(results = try database.read(TestCodableType.getAll, arguments: [:]))
+        XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(1, results.count)
         assert(results[0], equals: _noNils)
@@ -35,9 +29,9 @@ class SQLiteCodableTests: XCTestCase {
     func testEncodingWithNils() {
         let toEncode = _nils
         let encoder = SQLite.Encoder(database)
-        XCTAssertNoThrow(try encoder.encode(toEncode, using: TestCodableType.insert))
+        XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
-        XCTAssertNoThrow(results = try database.read(TestCodableType.getAll, arguments: [:]))
+        XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(1, results.count)
         assert(results[0], equals: _nils)
@@ -46,9 +40,9 @@ class SQLiteCodableTests: XCTestCase {
     func testEncodingMultiple() {
         let toEncode = [_noNils, _nils]
         let encoder = SQLite.Encoder(database)
-        XCTAssertNoThrow(try encoder.encode(toEncode, using: TestCodableType.insert))
+        XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
-        XCTAssertNoThrow(results = try database.read(TestCodableType.getAll, arguments: [:]))
+        XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(2, results.count)
         assert(results[0], equals: _noNils)
@@ -65,11 +59,11 @@ class SQLiteCodableTests: XCTestCase {
 
         let encoder = SQLite.Encoder(database)
 
-        XCTAssertNoThrow(try encoder.encode(original, using: TestCodableType.insert))
-        XCTAssertNoThrow(try encoder.encode(updated, using: TestCodableType.upsert))
+        XCTAssertNoThrow(try encoder.encode(original, using: CodableType.insert))
+        XCTAssertNoThrow(try encoder.encode(updated, using: CodableType.upsert))
 
         var results = Array<SQLiteRow>()
-        XCTAssertNoThrow(results = try database.read(TestCodableType.getAll, arguments: [:]))
+        XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
         XCTAssertEqual(1, results.count)
         assert(results[0], equals: updated)
     }
@@ -90,11 +84,11 @@ class SQLiteCodableTests: XCTestCase {
 
         let encoder = SQLite.Encoder(database)
 
-        XCTAssertNoThrow(try encoder.encode([original1, original2], using: TestCodableType.insert))
-        XCTAssertNoThrow(try encoder.encode([updated1, updated2], using: TestCodableType.upsert))
+        XCTAssertNoThrow(try encoder.encode([original1, original2], using: CodableType.insert))
+        XCTAssertNoThrow(try encoder.encode([updated1, updated2], using: CodableType.upsert))
 
         var results = Array<SQLiteRow>()
-        XCTAssertNoThrow(results = try database.read(TestCodableType.getAll, arguments: [:]))
+        XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
         XCTAssertEqual(2, results.count)
         assert(results[0], equals: updated2)
         assert(results[1], equals: updated1)
@@ -105,9 +99,9 @@ class SQLiteCodableTests: XCTestCase {
         insert([toDecode])
 
         let decoder = SQLite.Decoder(database)
-        var decoded: TestCodableType?
+        var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
-        XCTAssertNoThrow(decoded = try decoder.decode(TestCodableType.self, using: TestCodableType.getByID, arguments: args))
+        XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
 
         XCTAssertEqual(toDecode, decoded)
     }
@@ -117,9 +111,9 @@ class SQLiteCodableTests: XCTestCase {
         insert([toDecode])
 
         let decoder = SQLite.Decoder(database)
-        var decoded: TestCodableType?
+        var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
-        XCTAssertNoThrow(decoded = try decoder.decode(TestCodableType.self, using: TestCodableType.getByID, arguments: args))
+        XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
 
         XCTAssertEqual(toDecode, decoded)
     }
@@ -129,9 +123,9 @@ class SQLiteCodableTests: XCTestCase {
         insert(toDecode)
 
         let decoder = SQLite.Decoder(database)
-        var decoded: Array<TestCodableType> = []
+        var decoded: Array<CodableType> = []
         XCTAssertNoThrow(decoded = try decoder.decode(
-            Array<TestCodableType>.self, using: TestCodableType.getAll, arguments: [:]
+            Array<CodableType>.self, using: CodableType.getAll, arguments: [:]
             ))
 
         XCTAssertEqual(toDecode, decoded)
@@ -139,15 +133,15 @@ class SQLiteCodableTests: XCTestCase {
 }
 
 extension SQLiteCodableTests {
-    fileprivate var _noNils: TestCodableType {
+    fileprivate var _noNils: CodableType {
         let uuid = UUID(uuidString: "B25D5458-1F18-4BFB-A188-F1BF1E55F796")!
-        let inner = Inner(
+        let inner = CodableType.Inner(
             string: "Inner One",
             data: "{ \"id\": 123, \"name\": \"John Appleseed\" }".data(using: .utf8)!,
             date: Date(timeIntervalSince1970: 1),
             optionalBool: true
         )
-        return TestCodableType(
+        return CodableType(
             id: 1,
             uuid: uuid,
             string: "one",
@@ -159,15 +153,15 @@ extension SQLiteCodableTests {
         )
     }
 
-    fileprivate var _nils: TestCodableType {
+    fileprivate var _nils: CodableType {
         let uuid = UUID(uuidString: "1E54A649-4EEB-4E4A-BCC8-78AF5C8B2B22")!
-        let inner = Inner(
+        let inner = CodableType.Inner(
             string: "Inner Two",
             data: Data([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
             date: Date(timeIntervalSince1970: 2),
             optionalBool: nil
         )
-        return TestCodableType(
+        return CodableType(
             id: 2,
             uuid: uuid,
             string: "two",
@@ -181,7 +175,7 @@ extension SQLiteCodableTests {
 }
 
 extension SQLiteCodableTests {
-    private func assert(_ row: SQLiteRow, equals expected: TestCodableType) {
+    private func assert(_ row: SQLiteRow, equals expected: CodableType) {
         XCTAssertEqual(expected.id, row["id"]?.intValue)
         XCTAssertEqual(expected.string, row["string"]?.stringValue)
         XCTAssertEqual(expected.data, row["data"]?.dataValue)
@@ -200,43 +194,16 @@ extension SQLiteCodableTests {
             }
             return date
         })
-        let inner = try! decoder.decode(Inner.self, from: innerData)
+        let inner = try! decoder.decode(CodableType.Inner.self, from: innerData)
         XCTAssertEqual(expected.inner, inner)
     }
 
-    private func insert(_ toInsert: Array<TestCodableType>) {
+    private func insert(_ toInsert: Array<CodableType>) {
         let encoder = SQLite.Encoder(database)
         do {
-            try encoder.encode(toInsert, using: TestCodableType.insert)
+            try encoder.encode(toInsert, using: CodableType.insert)
         } catch let error {
             XCTFail("Could not insert \(toInsert): \(error)")
-        }
-    }
-}
-
-extension SQLiteCodableTests {
-    fileprivate func temporaryDirectory() -> String {
-        return (NSTemporaryDirectory() as NSString).appendingPathComponent("\(arc4random())")
-    }
-
-    fileprivate func createDirectory(at path: String) {
-        let fileManager = FileManager()
-
-        do {
-            try? fileManager.removeItem(atPath: path)
-            try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
-        } catch let error {
-            assertionFailure("Could not create directory at '\(path)': \(error)")
-        }
-    }
-
-    fileprivate func removeDirectory(at path: String) {
-        let fileManager = FileManager()
-
-        do {
-            try fileManager.removeItem(atPath: path)
-        } catch let error {
-            assertionFailure("Could not delete directory at '\(path)': \(error)")
         }
     }
 }

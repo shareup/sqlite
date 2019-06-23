@@ -22,6 +22,7 @@ extension SQLite {
         case onInvalidDecodingType(String)
         case onInvalidSelectStatementColumnCount
         case onObserveWithoutColumnMetadata
+        case onSubscribeWithoutDatabase
     }
 }
 
@@ -70,6 +71,8 @@ extension SQLite.Error: CustomStringConvertible {
             return "A SELECT statement must contain at least one result column"
         case .onObserveWithoutColumnMetadata:
             return "Could not observe database because SQLite was not compiled with SQLITE_ENABLE_COLUMN_METADATA"
+        case .onSubscribeWithoutDatabase:
+            return "Could not subscribe because the SQLite database has been deallocated"
         }
     }
 }

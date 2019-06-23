@@ -1,6 +1,6 @@
 import Foundation
 
-struct TestCodableType: Codable, Equatable {
+struct CodableType: Codable, Equatable {
     var id: Int
     var uuid: UUID
     var string: String
@@ -22,24 +22,26 @@ struct TestCodableType: Codable, Equatable {
     }
 }
 
-struct Inner: Codable, Equatable {
-    var string: String
-    var data: Data
-    var date: Date
-    var optionalBool: Bool?
+extension CodableType {
+    struct Inner: Codable, Equatable {
+        var string: String
+        var data: Data
+        var date: Date
+        var optionalBool: Bool?
 
-    private enum CodingKeys: String, CodingKey {
-        case string
-        case data
-        case date
-        case optionalBool = "optional_bool"
+        private enum CodingKeys: String, CodingKey {
+            case string
+            case data
+            case date
+            case optionalBool = "optional_bool"
+        }
     }
 }
 
-extension TestCodableType {
+extension CodableType {
     static var createTable: String {
         return """
-        CREATE TABLE test_codable_types (
+        CREATE TABLE codable_types (
             id INTEGER UNIQUE NOT NULL,
             uuid TEXT NOT NULL,
             string TEXT NOT NULL,
@@ -54,7 +56,7 @@ extension TestCodableType {
 
     static var insert: String {
         return """
-        INSERT INTO test_codable_types VALUES (
+        INSERT INTO codable_types VALUES (
             :id,
             :uuid,
             :string,
@@ -69,7 +71,7 @@ extension TestCodableType {
 
     static var upsert: String {
         return """
-        INSERT OR REPLACE INTO test_codable_types VALUES (
+        INSERT OR REPLACE INTO codable_types VALUES (
             :id,
             :uuid,
             :string,
@@ -83,10 +85,10 @@ extension TestCodableType {
     }
 
     static var getAll: String {
-        return "SELECT * FROM test_codable_types ORDER BY id;"
+        return "SELECT * FROM codable_types ORDER BY id;"
     }
 
     static var getByID: String {
-        return "SELECT * FROM test_codable_types WHERE id=:id;"
+        return "SELECT * FROM codable_types WHERE id=:id;"
     }
 }
