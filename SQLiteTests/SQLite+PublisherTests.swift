@@ -116,22 +116,29 @@ class SQLitePublisherTests: XCTestCase {
         sink.cancel()
     }
 
-//    func testDelete() {
-//        _observeGetAllPeople()
-//        let expectation = self.expectation(description: "People observer notified")
-//        self.expectationAndResultsForPeople = (expectation, [_person2])
-//        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
-//        waitForExpectations(timeout: 0.5)
-//    }
-//
-//    func testInsert() {
-//        _observeGetAllPeople()
-//        let expectation = self.expectation(description: "People observer notified")
-//        let insertedPerson = Person(id: "3", name: "3", age: 3, title: "Limo Driver")
-//        self.expectationAndResultsForPeople = (expectation, [_person1, _person2, insertedPerson])
-//        try! database.write(Person.insert, arguments: insertedPerson.asArguments)
-//        waitForExpectations(timeout: 0.5)
-//    }
+    func testInsert() {
+        let expectation = self.expectation(description: "Received two notifications")
+
+        let person3 = Person(id: "3", name: "New Human", age: 1, title: "newborn")
+        let pet3 = Pet(name: "Camo the Camel", ownerID: person3.id, type: "camel", registrationID: "3")
+        let petOwner3 = PetOwner(
+            id: person3.id, name: person3.name, age: person3.age, title: person3.title, pet: pet3
+        )
+
+        let expected: Array<Array<PetOwner>> = [
+            [_petOwner1, _petOwner2],
+            [_petOwner1, _petOwner2], // After insert of person
+            [_petOwner1, _petOwner2, petOwner3], // After insert of pet
+        ]
+
+        let publisher: AnyPublisher<Array<PetOwner>, Error> = database.publisher(PetOwner.self, PetOwner.getAll)
+
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        try! database.write(Person.insert, arguments: person3.asArguments)
+        try! database.write(Pet.insert, arguments: pet3.asArguments)
+        waitForExpectations(timeout: 0.5)
+        sink.cancel()
+    }
 }
 
 extension SQLitePublisherTests {
