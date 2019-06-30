@@ -62,6 +62,14 @@ class QueryPlanParserTests: XCTestCase {
         let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
+
+    static var allTests = [
+        ("testColumnsFromSingleTables", testColumnsFromSingleTables),
+        ("testColumnsFromMultipleTables", testColumnsFromMultipleTables),
+        ("testColumnsWithMergesJoinsAndJSON", testColumnsWithMergesJoinsAndJSON),
+        ("testColumnsWithSimilarNames", testColumnsWithSimilarNames),
+        ("testColumnsWithReservedWordsAndControlCharacters", testColumnsWithReservedWordsAndControlCharacters),
+    ]
 }
 
 extension QueryPlanParserTests {

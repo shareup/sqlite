@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Atomic
 
 extension SQLite {
     struct Publisher: Combine.Publisher {
@@ -39,7 +40,6 @@ private extension SQLite {
         private let _subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>
 
         private var _demand: Subscribers.Demand?
-        private let _lock = Lock()
 
         @Atomic(nil) private var _token: AnyObject?
 
@@ -75,39 +75,5 @@ private extension SQLite {
                 _demand = _subscriber.receive(rows)
             }
         }
-    }
-}
-
-@propertyWrapper
-private struct Atomic<T> {
-    var value: T {
-        get { return _lock.locked { return _value } }
-        set { _lock.locked { _value = newValue } }
-    }
-
-    private var _value: T
-    private let _lock = Lock()
-
-    init(_ initialValue: T) {
-        _value = initialValue
-    }
-}
-
-private final class Lock {
-    private var _lock: UnsafeMutablePointer<os_unfair_lock>
-
-    init() {
-        _lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: 1)
-        _lock.initialize(to: os_unfair_lock())
-    }
-
-    deinit {
-        _lock.deallocate()
-    }
-
-    func locked<T>(_ block: () -> T) -> T {
-        os_unfair_lock_lock(_lock)
-        defer { os_unfair_lock_unlock(_lock) }
-        return block()
     }
 }

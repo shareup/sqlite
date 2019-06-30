@@ -296,6 +296,26 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertTrue(success2)
         XCTAssertFalse(database.hasOpenTransactions)
     }
+
+    static var allTests = [
+        ("testDatabaseIsCreated", testDatabaseIsCreated),
+        ("testUserVersion", testUserVersion),
+        ("testSupportsJSON", testSupportsJSON),
+        ("testCreateTable", testCreateTable),
+        ("testTablesAndColumns", testTablesAndColumns),
+        ("testInsertAndFetchBlob", testInsertAndFetchBlob),
+        ("testInsertAndFetchFloatStringAndData", testInsertAndFetchFloatStringAndData),
+        ("testInsertAndFetchNullableText", testInsertAndFetchNullableText),
+        ("testInsertAndFetchSQLiteTransformable", testInsertAndFetchSQLiteTransformable),
+        ("testInsertTextIntoTypesafeDataColumnFails", testInsertTextIntoTypesafeDataColumnFails),
+        ("testInsertNilIntoNonNullDataColumnFails", testInsertNilIntoNonNullDataColumnFails),
+        ("testInsertOrReplaceWithSameIDReplacesRows", testInsertOrReplaceWithSameIDReplacesRows),
+        ("testInsertAndFetchValidJSON", testInsertAndFetchValidJSON),
+        ("testInsertInvalidJSON", testInsertInvalidJSON),
+        ("testInsertFloatStringAndDataInTransaction", testInsertFloatStringAndDataInTransaction),
+        ("testInvalidInsertOfBlobInTransactionRollsBack", testInvalidInsertOfBlobInTransactionRollsBack),
+        ("testHasOpenTransactions", testHasOpenTransactions),
+    ]
 }
 
 extension SQLiteDatabaseTests {

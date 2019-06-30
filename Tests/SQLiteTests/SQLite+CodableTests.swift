@@ -130,6 +130,17 @@ class SQLiteCodableTests: XCTestCase {
 
         XCTAssertEqual(toDecode, decoded)
     }
+
+    static var allTests = [
+        ("testEncodingWithoutNils", testEncodingWithoutNils),
+        ("testEncodingWithNils", testEncodingWithNils),
+        ("testEncodingMultiple", testEncodingMultiple),
+        ("testUpsertSingle", testUpsertSingle),
+        ("testUpsertMultiple", testUpsertMultiple),
+        ("testDecodingWithoutNils", testDecodingWithoutNils),
+        ("testDecodingWithNils", testDecodingWithNils),
+        ("testDecodingMultiple", testDecodingMultiple),
+    ]
 }
 
 extension SQLiteCodableTests {

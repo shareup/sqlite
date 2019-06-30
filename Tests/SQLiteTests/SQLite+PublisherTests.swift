@@ -139,6 +139,16 @@ class SQLitePublisherTests: XCTestCase {
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
+
+    static var allTests = [
+        ("testReceivesCompletionWithErrorGivenInvalidSQL", testReceivesCompletionWithErrorGivenInvalidSQL),
+        ("testCancellingSinkCancelsSubscriptions", testCancellingSinkCancelsSubscriptions),
+        ("testDeleteAsSQLiteRow", testDeleteAsSQLiteRow),
+        ("testDelete", testDelete),
+        ("testDeleteFirstWhere", testDeleteFirstWhere),
+        ("testDeleteMappedToName", testDeleteMappedToName),
+        ("testInsert", testInsert),
+    ]
 }
 
 extension SQLitePublisherTests {

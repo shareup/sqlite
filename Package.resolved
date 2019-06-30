@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Atomic",
+        "repositoryURL": "https://github.com/shareup/atomic.git",
+        "state": {
+          "branch": null,
+          "revision": "ed7857cf7b3ef22ef0d3689bec74a60d14a129e5",
+          "version": "1.0.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
