@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Atomic
 
 extension SQLite {
     struct Publisher: Combine.Publisher {
@@ -24,7 +25,7 @@ extension SQLite {
             }
 
             do {
-                let subscription = Subscription(subscriber: subscriber.eraseToAnySubscriber())
+                let subscription = Subscription(subscriber: AnySubscriber(subscriber))
                 try subscription.observe(_sql, arguments: _arguments, queue: _queue, on: database)
                 subscriber.receive(subscription: subscription)
             } catch {
@@ -39,7 +40,6 @@ private extension SQLite {
         private let _subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>
 
         private var _demand: Subscribers.Demand?
-        private let _lock = Lock()
 
         @Atomic(nil) private var _token: AnyObject?
 
@@ -53,13 +53,13 @@ private extension SQLite {
 
         func cancel() {
             _token = nil
+            _demand = nil
         }
 
         func observe(_ sql: SQL, arguments: SQLiteArguments, queue: DispatchQueue, on database: Database) throws {
             let block = { (rows: Array<SQLiteRow>) -> Void in
                 queue.async { [weak self] in
                     self?.receive(rows)
-                    self?.request(.unlimited)
                 }
             }
 
@@ -68,46 +68,9 @@ private extension SQLite {
 
         func receive(_ rows: Array<SQLiteRow>) {
             guard _token != nil else { return }
-
-            if let max = _demand?.max, rows.count > max {
-                _demand = _subscriber.receive(Array(rows.prefix(max)))
-            } else {
-                _demand = _subscriber.receive(rows)
-            }
+            guard let demand = _demand else { return }
+            guard demand > 0 else { return }
+            _demand = _subscriber.receive(rows)
         }
-    }
-}
-
-@propertyWrapper
-private struct Atomic<T> {
-    var value: T {
-        get { return _lock.locked { return _value } }
-        set { _lock.locked { _value = newValue } }
-    }
-
-    private var _value: T
-    private let _lock = Lock()
-
-    init(_ initialValue: T) {
-        _value = initialValue
-    }
-}
-
-private final class Lock {
-    private var _lock: UnsafeMutablePointer<os_unfair_lock>
-
-    init() {
-        _lock = UnsafeMutablePointer<os_unfair_lock>.allocate(capacity: 1)
-        _lock.initialize(to: os_unfair_lock())
-    }
-
-    deinit {
-        _lock.deallocate()
-    }
-
-    func locked<T>(_ block: () -> T) -> T {
-        os_unfair_lock_lock(_lock)
-        defer { os_unfair_lock_unlock(_lock) }
-        return block()
     }
 }

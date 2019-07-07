@@ -253,6 +253,20 @@ class SQLiteObserveTests: XCTestCase {
 
         waitForExpectations(timeout: 0.5)
     }
+
+    static var allTests = [
+        ("testThrowsGivenInvalidSQL", testThrowsGivenInvalidSQL),
+        ("testDelete", testDelete),
+        ("testInsert", testInsert),
+        ("testUpdate", testUpdate),
+        ("testSQLArgumentsAreRespectedAndMaintained", testSQLArgumentsAreRespectedAndMaintained),
+        ("testReceiveResultsOnlyForObservedType", testReceiveResultsOnlyForObservedType),
+        ("testReceiveResultsForAllObservedTypes", testReceiveResultsForAllObservedTypes),
+        ("testReceiveJoinedResultsAfterDeletion", testReceiveJoinedResultsAfterDeletion),
+        ("testReceiveJoinedResultsAfterInsertion", testReceiveJoinedResultsAfterInsertion),
+        ("testReceiveJoinedResultsAfterUpdate", testReceiveJoinedResultsAfterUpdate),
+        ("testObserverIsNotRetained", testObserverIsNotRetained),
+    ]
 }
 
 extension SQLiteObserveTests {

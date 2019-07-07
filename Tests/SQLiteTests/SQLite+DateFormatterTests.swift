@@ -25,6 +25,12 @@ class SQLiteDateFormatterTests: XCTestCase {
         XCTAssertNotNil(dateFromString)
         XCTAssertEqual(date, dateFromString)
     }
+
+    static var allTests = [
+        ("testCurrentDateSerializesAndDeserializes", testCurrentDateSerializesAndDeserializes),
+        ("testUnixTimestampSerializesAndDeserializes", testUnixTimestampSerializesAndDeserializes),
+        ("testISO8601DateSerializesAndDeserializes", testISO8601DateSerializesAndDeserializes),
+    ]
 }
 
 private let iso8601: DateFormatter = {

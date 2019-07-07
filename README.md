@@ -10,22 +10,17 @@
 
 ## Installation
 
-### Carthage
+### Swift Package Manager
 
-1. [Install Carthage](https://github.com/Carthage/Carthage#installing-carthage)
-2. Add the following to your Cartfile:
+To use SQLite with the Swift Package Manager, add a dependency to your Package.swift file:
 
+```swift
+let package = Package(
+  dependencies: [
+    .package(url: "https://github.com/shareup/sqlite.git", .upToNextMajor(from: "7.0.0"))
+  ]
+)
 ```
-github "shareup-app/sqlite" ~> 1.0.0
-```
-3. Run `carthage update` and [add the correct framework](https://github.com/Carthage/Carthage#adding-frameworks-to-an-application) to your application
-
-### Manually
-
-1. [Download the most recent tagged version of SQLite.Database](https://github.com/shareup-app/sqlite/releases/tag/v1.0)
-2. Add `SQLite.xcodeproj` to your workspace (.xcworkspace file) by clicking on "Add Files to [your workspace]". Select `SQLite.xcodeproj` and click "Add."
-3. If you have not already done so, add a "Copy Frameworks" build phase to your app's target. Select your app's project file in Xcode's sidebar and then click on the "Build Phases" tab. Click the + button above "Target Dependencies" for your app's target. Choose "New Copy Files Phase". Rename the newly-created phase to "Copy Frameworks". Change the destination from "Resources" to "Frameworks".
-4. To add the new library to your app, if you're not already there, select your app's project file in Xcode's sidebar. Click on the "Build Phases" tab and open the "Copy Frameworks" section. Drag the "SQLite.framework" file from inside the SQLite framework's "Products" group to the "Copy Frameworks" . After doing this, you should see the "SQLite.framework" show up in the sidebar under your app's frameworks group. Click on the framework, show the Utilities (the third pane on the right side in Xcode), and verify that the framework's location is "Relative to Build Products".
 
 ## License
 
