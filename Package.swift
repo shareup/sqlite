@@ -19,11 +19,14 @@ let package = Package(
         .target(
             name: "SQLite",
             dependencies: [
-                "Atomic"
+                "Atomic",
             ]),
         .testTarget(
             name: "SQLiteTests",
-            dependencies: ["SQLite", "Forever"]
+            dependencies: [
+                "SQLite",
+                "Forever",
+            ]
         ),
     ]
 )
