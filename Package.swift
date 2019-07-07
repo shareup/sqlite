@@ -12,7 +12,8 @@ let package = Package(
             targets: ["SQLite"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/shareup/atomic.git", .upToNextMajor(from: "1.0.0"))
+        .package(url: "https://github.com/shareup/atomic.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/shareup/forever.git", .upToNextMajor(from: "0.0.0")),
     ],
     targets: [
         .target(
@@ -22,6 +23,7 @@ let package = Package(
             ]),
         .testTarget(
             name: "SQLiteTests",
-            dependencies: ["SQLite"]),
+            dependencies: ["SQLite", "Forever"]
+        ),
     ]
 )

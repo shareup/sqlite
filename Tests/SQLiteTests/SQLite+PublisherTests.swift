@@ -1,5 +1,6 @@
 import XCTest
 import Combine
+import Forever
 @testable import SQLite
 
 class SQLitePublisherTests: XCTestCase {
@@ -44,12 +45,12 @@ class SQLitePublisherTests: XCTestCase {
         subscriber.cancel()
     }
 
-    func testCancellingSinkCancelsSubscriptions() {
+    func testCancellingForeverCancelsSubscriptions() {
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let sink = self.sink(for: publisher, expecting: [[_person1, _person2]])
+        let forever = self.forever(for: publisher, expecting: [[_person1, _person2]])
 
         self.do({
-            sink.cancel()
+            forever.cancel()
             try! self.database.write(Person.deleteWithID, arguments: ["id": .text(self._person1.id)])
         }, after: 0.05, thenWait: 0.1)
     }
@@ -63,10 +64,10 @@ class SQLitePublisherTests: XCTestCase {
         ]
 
         let publisher: AnyPublisher<Array<SQLiteRow>, Error> = database.publisher(Person.getAll)
-        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        sink.cancel()
+        forever.cancel()
     }
 
     func testDelete() {
@@ -78,23 +79,23 @@ class SQLitePublisherTests: XCTestCase {
         ]
 
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        sink.cancel()
+        forever.cancel()
     }
 
     func testDeleteFirstWhere() {
-        let expectation = self.expectation(description: "Received two notifications")
+        let expectation = self.expectation(description: "Received one person")
         let publisher: AnyPublisher<Array<Person>, Error> =
             database.publisher(Person.getAll)
-                .first(where: { $0.count == 1 })
+                .filter({ $0.count == 1 })
                 .eraseToAnyPublisher()
 
-        let sink = self.sink(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
+        let forever = self.forever(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        sink.cancel()
+        forever.cancel()
     }
 
     func testDeleteMappedToName() {
@@ -110,10 +111,10 @@ class SQLitePublisherTests: XCTestCase {
                 .map { $0.map { $0.name } }
                 .eraseToAnyPublisher()
 
-        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        sink.cancel()
+        forever.cancel()
     }
 
     func testInsert() {
@@ -133,16 +134,16 @@ class SQLitePublisherTests: XCTestCase {
 
         let publisher: AnyPublisher<Array<PetOwner>, Error> = database.publisher(PetOwner.self, PetOwner.getAll)
 
-        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.insert, arguments: person3.asArguments)
         try! database.write(Pet.insert, arguments: pet3.asArguments)
         waitForExpectations(timeout: 0.5)
-        sink.cancel()
+        forever.cancel()
     }
 
     static var allTests = [
         ("testReceivesCompletionWithErrorGivenInvalidSQL", testReceivesCompletionWithErrorGivenInvalidSQL),
-        ("testCancellingSinkCancelsSubscriptions", testCancellingSinkCancelsSubscriptions),
+        ("testCancellingForeverCancelsSubscriptions", testCancellingForeverCancelsSubscriptions),
         ("testDeleteAsSQLiteRow", testDeleteAsSQLiteRow),
         ("testDelete", testDelete),
         ("testDeleteFirstWhere", testDeleteFirstWhere),
@@ -196,12 +197,12 @@ private extension SQLitePublisherTests {
         }
     }
 
-    func sink<T: Equatable, E: Error>(
+    func forever<T: Equatable, E: Error>(
         for publisher: AnyPublisher<Array<T>, E>,
         shouldFinish: Bool = false,
         expecting expected: Array<Array<T>>,
         expectation: XCTestExpectation? = nil)
-        -> Subscribers.Sink<AnyPublisher<Array<T>, E>> {
+        -> Subscribers.Forever<AnyPublisher<Array<T>, E>> {
             let receiveCompletion: (Subscribers.Completion<E>) -> Void = { completion in
                 guard shouldFinish, case .finished = completion else {
                     XCTFail("Should not receive completion: \(String(describing: completion))")
@@ -218,6 +219,6 @@ private extension SQLitePublisherTests {
                 }
             }
 
-            return publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
+            return publisher.forever(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
     }
 }

@@ -25,7 +25,7 @@ extension SQLite {
             }
 
             do {
-                let subscription = Subscription(subscriber: subscriber.eraseToAnySubscriber())
+                let subscription = Subscription(subscriber: AnySubscriber(subscriber))
                 try subscription.observe(_sql, arguments: _arguments, queue: _queue, on: database)
                 subscriber.receive(subscription: subscription)
             } catch {
@@ -53,13 +53,13 @@ private extension SQLite {
 
         func cancel() {
             _token = nil
+            _demand = nil
         }
 
         func observe(_ sql: SQL, arguments: SQLiteArguments, queue: DispatchQueue, on database: Database) throws {
             let block = { (rows: Array<SQLiteRow>) -> Void in
                 queue.async { [weak self] in
                     self?.receive(rows)
-                    self?.request(.unlimited)
                 }
             }
 
@@ -68,12 +68,9 @@ private extension SQLite {
 
         func receive(_ rows: Array<SQLiteRow>) {
             guard _token != nil else { return }
-
-            if let max = _demand?.max, rows.count > max {
-                _demand = _subscriber.receive(Array(rows.prefix(max)))
-            } else {
-                _demand = _subscriber.receive(rows)
-            }
+            guard let demand = _demand else { return }
+            guard demand > 0 else { return }
+            _demand = _subscriber.receive(rows)
         }
     }
 }
