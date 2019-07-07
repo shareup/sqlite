@@ -1,5 +1,0 @@
-#include "debug.xcconfig"
-
-INFOPLIST_FILE = SQLiteTests/Info.plist
-PRODUCT_BUNDLE_IDENTIFIER = io.shareup.sqlitetests
-PRODUCT_MODULE_NAME = SQLiteTests

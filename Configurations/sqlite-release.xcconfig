@@ -1,5 +1,0 @@
-#include "release.xcconfig"
-
-INFOPLIST_FILE = SQLite/Resources/Info.plist
-PRODUCT_BUNDLE_IDENTIFIER = io.shareup.sqlite
-PRODUCT_MODULE_NAME = SQLite
