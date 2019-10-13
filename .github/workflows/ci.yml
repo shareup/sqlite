@@ -9,7 +9,5 @@ jobs:
         run: xcversion select 11.1
       - name: Generate Xcode project file
         run: swift package generate-xcodeproj
-      - name: Build
-        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.1'
       - name: Test
-        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.1' test
+        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.1' test | xcpretty
