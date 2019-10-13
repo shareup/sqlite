@@ -1,0 +1,13 @@
+name: ci
+on: push
+jobs:
+  test:
+    runs-on: macOS-10.14
+    steps:
+      - uses: actions/checkout@v1
+      - name: Switch Xcode to 11.1
+        run: xcversion select 11.1
+      - name: Build
+        run: swift build -v
+      - name: Test
+        run: swift test -v
