@@ -10,6 +10,6 @@ jobs:
       - name: Generate Xcode project file
         run: swift package generate-xcodeproj
       - name: Build
-        run: xcodebuild -scheme Forever-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.0'
+        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.0'
       - name: Test
-        run: xcodebuild -scheme Forever-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.0' test
+        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.0' test
