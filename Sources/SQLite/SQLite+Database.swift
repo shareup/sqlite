@@ -277,8 +277,7 @@ extension SQLite.Database {
     }
 
     func notify(observers: Array<SQLite.Observer>) {
-        _queue.async { [weak self] in
-            guard let self = self else { return }
+        _queue.async {
             observers.forEach { (observer) in
                 defer { observer.statement.reset() }
                 guard let (_, output) = try? observer.statement.evaluate() else { return }
