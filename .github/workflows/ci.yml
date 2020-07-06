@@ -2,11 +2,11 @@ name: ci
 on: push
 jobs:
   test:
-    runs-on: macOS-10.14
+    runs-on: macOS-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Switch Xcode to 11.1
-        run: xcversion select 11.1
+      - uses: actions/checkout@v2
+      - name: Switch Xcode to latest version
+        run: xcversion select latest
       - name: Generate Xcode project file
         run: swift package generate-xcodeproj
       - name: Build
