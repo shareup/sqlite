@@ -1,7 +1,8 @@
 # SQLite.Database
 
-[![Swift](https://img.shields.io/badge/swift-5.1-green.svg?longCache=true&style=flat)](https://developer.apple.com/swift/)
+[![Swift](https://img.shields.io/badge/swift-5.2-green.svg?longCache=true&style=flat)](https://developer.apple.com/swift/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?longCache=true&style=flat)](/LICENSE)
+![Build](https://github.com/shareup/sqlite/workflows/Build/badge.svg)
 
 ## Introduction
 

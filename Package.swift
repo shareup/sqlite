@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.2
 import PackageDescription
 
 let package = Package(
@@ -12,8 +12,7 @@ let package = Package(
             targets: ["SQLite"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/shareup/atomic.git", .upToNextMajor(from: "1.0.0")),
-        .package(url: "https://github.com/shareup/forever.git", .upToNextMajor(from: "0.0.0")),
+        .package(name: "Atomic", url: "https://github.com/shareup/atomic.git", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -25,7 +24,6 @@ let package = Package(
             name: "SQLiteTests",
             dependencies: [
                 "SQLite",
-                "Forever",
             ]
         ),
     ]

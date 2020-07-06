@@ -39,7 +39,7 @@ private extension SQLite {
     final class Subscription: Combine.Subscription {
         private let _subscriber: AnySubscriber<Array<SQLiteRow>, Swift.Error>
 
-        private var _demand: Subscribers.Demand?
+        private var _demand: Subscribers.Demand = .none
 
         @Atomic(nil) private var _token: AnyObject?
 
@@ -48,12 +48,12 @@ private extension SQLite {
         }
 
         func request(_ demand: Subscribers.Demand) {
-            _demand = demand
+            _demand += demand
         }
 
         func cancel() {
             _token = nil
-            _demand = nil
+            _demand = .none
         }
 
         func observe(_ sql: SQL, arguments: SQLiteArguments, queue: DispatchQueue, on database: Database) throws {
@@ -68,9 +68,9 @@ private extension SQLite {
 
         func receive(_ rows: Array<SQLiteRow>) {
             guard _token != nil else { return }
-            guard let demand = _demand else { return }
-            guard demand > 0 else { return }
-            _demand = _subscriber.receive(rows)
+            guard _demand > 0 else { return }
+            _demand -= rows.count
+            _demand += _subscriber.receive(rows)
         }
     }
 }

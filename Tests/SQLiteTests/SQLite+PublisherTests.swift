@@ -1,6 +1,5 @@
 import XCTest
 import Combine
-import Forever
 @testable import SQLite
 
 class SQLitePublisherTests: XCTestCase {
@@ -47,10 +46,10 @@ class SQLitePublisherTests: XCTestCase {
 
     func testCancellingForeverCancelsSubscriptions() {
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let forever = self.forever(for: publisher, expecting: [[_person1, _person2]])
+        let sink = self.sink(for: publisher, expecting: [[_person1, _person2]])
 
         self.do({
-            forever.cancel()
+            sink.cancel()
             try! self.database.write(Person.deleteWithID, arguments: ["id": .text(self._person1.id)])
         }, after: 0.05, thenWait: 0.1)
     }
@@ -64,10 +63,10 @@ class SQLitePublisherTests: XCTestCase {
         ]
 
         let publisher: AnyPublisher<Array<SQLiteRow>, Error> = database.publisher(Person.getAll)
-        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        forever.cancel()
+        sink.cancel()
     }
 
     func testDelete() {
@@ -79,10 +78,10 @@ class SQLitePublisherTests: XCTestCase {
         ]
 
         let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
-        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        forever.cancel()
+        sink.cancel()
     }
 
     func testDeleteFirstWhere() {
@@ -92,10 +91,10 @@ class SQLitePublisherTests: XCTestCase {
                 .filter({ $0.count == 1 })
                 .eraseToAnyPublisher()
 
-        let forever = self.forever(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
+        let sink = self.sink(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        forever.cancel()
+        sink.cancel()
     }
 
     func testDeleteMappedToName() {
@@ -111,10 +110,10 @@ class SQLitePublisherTests: XCTestCase {
                 .map { $0.map { $0.name } }
                 .eraseToAnyPublisher()
 
-        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
-        forever.cancel()
+        sink.cancel()
     }
 
     func testInsert() {
@@ -134,11 +133,11 @@ class SQLitePublisherTests: XCTestCase {
 
         let publisher: AnyPublisher<Array<PetOwner>, Error> = database.publisher(PetOwner.self, PetOwner.getAll)
 
-        let forever = self.forever(for: publisher, expecting: expected, expectation: expectation)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.insert, arguments: person3.asArguments)
         try! database.write(Pet.insert, arguments: pet3.asArguments)
         waitForExpectations(timeout: 0.5)
-        forever.cancel()
+        sink.cancel()
     }
 
     static var allTests = [
@@ -197,12 +196,12 @@ private extension SQLitePublisherTests {
         }
     }
 
-    func forever<T: Equatable, E: Error>(
+    func sink<T: Equatable, E: Error>(
         for publisher: AnyPublisher<Array<T>, E>,
         shouldFinish: Bool = false,
         expecting expected: Array<Array<T>>,
         expectation: XCTestExpectation? = nil)
-        -> Subscribers.Forever<AnyPublisher<Array<T>, E>> {
+        -> AnyCancellable {
             let receiveCompletion: (Subscribers.Completion<E>) -> Void = { completion in
                 guard shouldFinish, case .finished = completion else {
                     XCTFail("Should not receive completion: \(String(describing: completion))")
@@ -219,6 +218,6 @@ private extension SQLitePublisherTests {
                 }
             }
 
-            return publisher.forever(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
+            return publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
     }
 }

@@ -9,15 +9,6 @@
           "revision": "781438953ec4a7eec7d5467024a6d85423bc97b4",
           "version": "1.0.1"
         }
-      },
-      {
-        "package": "Forever",
-        "repositoryURL": "https://github.com/shareup/forever.git",
-        "state": {
-          "branch": null,
-          "revision": "2046d987986a43ae31c25f0e02ff9a2448cc45fb",
-          "version": "0.0.2"
-        }
       }
     ]
   },
