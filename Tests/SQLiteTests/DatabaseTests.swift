@@ -2,12 +2,12 @@ import XCTest
 import SQLite3
 @testable import SQLite
 
-class SQLiteDatabaseTests: XCTestCase {
-    var database: SQLite.Database!
+class DatabaseTests: XCTestCase {
+    var database: Database!
     
     override func setUp() {
         super.setUp()
-        database = try! SQLite.Database(path: ":memory:")
+        database = try! Database(path: ":memory:")
     }
     
     override func tearDown() {
@@ -20,7 +20,7 @@ class SQLiteDatabaseTests: XCTestCase {
         let path = (directory as NSString).appendingPathComponent("test.db")
         createDirectory(at: directory)
 
-        let database = try! SQLite.Database(path: path)
+        let database = try! Database(path: path)
         XCTAssertTrue(FileManager().fileExists(atPath: path))
 
         database.close()
@@ -134,10 +134,10 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithTypesafeBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
         XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: two)) { (error) in
-            if case SQLite.Error.onStep(let code, _) = error {
+            if case Error.onStep(let code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
-                XCTFail("'\(error)' should be 'SQLite.Error.onStep'")
+                XCTFail("'\(error)' should be 'Error.onStep'")
             }
         }
     }
@@ -147,10 +147,10 @@ class SQLiteDatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: one)) { (error) in
-            if case SQLite.Error.onStep(let code, _) = error {
+            if case Error.onStep(let code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
-                XCTFail("'\(error)' should be 'SQLite.Error.onStep'")
+                XCTFail("'\(error)' should be 'Error.onStep'")
             }
         }
     }
@@ -202,7 +202,7 @@ class SQLiteDatabaseTests: XCTestCase {
             try database.write(write, arguments: ["id": .text("1"), "string": .text(json)])
             let result = try database.read(read, arguments: ["id": .text("1")])
             XCTAssertEqual(1, result.count)
-            XCTAssertEqual(SQLite.Value.text("This is some text"), result[0]["text"])
+            XCTAssertEqual(SQLiteValue.text("This is some text"), result[0]["text"])
         } catch {
             XCTFail(String(describing: error))
         }
@@ -318,7 +318,7 @@ class SQLiteDatabaseTests: XCTestCase {
     ]
 }
 
-extension SQLiteDatabaseTests {
+extension DatabaseTests {
     fileprivate var _createTableWithBlob: String {
         return """
         CREATE TABLE test (
@@ -406,7 +406,7 @@ extension SQLiteDatabaseTests {
     }
 }
 
-extension SQLiteDatabaseTests {
+extension DatabaseTests {
     fileprivate var _text: String {
         return "This is a test string! 我们要试一下！👩‍👩‍👧‍👧👮🏿"
     }
@@ -416,7 +416,7 @@ extension SQLiteDatabaseTests {
     }
 }
 
-extension SQLiteDatabaseTests {
+extension DatabaseTests {
     fileprivate func temporaryDirectory() -> String {
         return (NSTemporaryDirectory() as NSString).appendingPathComponent("\(arc4random())")
     }

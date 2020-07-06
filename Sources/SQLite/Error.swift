@@ -1,32 +1,30 @@
 import Foundation
 import SQLite3
 
-extension SQLite {
-    public enum Error: Swift.Error {
-        case onInternalError(String)
-        case onOpen(Int32, String)
-        case onClose(Int32)
-        case onPrepareStatement(Int32, String)
-        case onGetParameterIndex(String)
-        case onBindParameter(Int32, Int32, SQLite.Value)
-        case onStep(Int32, String)
-        case onWrite(Array<SQLiteRow>)
-        case onGetColumnType(Int32)
-        case onCreateFunction(String, Int32)
-        case onRemoveFunction(String, Int32)
-        case onGetColumnInTable(String)
-        case onGetIndexInTable(String)
-        case onGetSQL
-        case onInvalidTableName(String)
-        case onDecodingRow(String)
-        case onInvalidDecodingType(String)
-        case onInvalidSelectStatementColumnCount
-        case onObserveWithoutColumnMetadata
-        case onSubscribeWithoutDatabase
-    }
+public enum Error: Swift.Error {
+    case onInternalError(String)
+    case onOpen(Int32, String)
+    case onClose(Int32)
+    case onPrepareStatement(Int32, String)
+    case onGetParameterIndex(String)
+    case onBindParameter(Int32, Int32, SQLiteValue)
+    case onStep(Int32, String)
+    case onWrite(Array<SQLiteRow>)
+    case onGetColumnType(Int32)
+    case onCreateFunction(String, Int32)
+    case onRemoveFunction(String, Int32)
+    case onGetColumnInTable(String)
+    case onGetIndexInTable(String)
+    case onGetSQL
+    case onInvalidTableName(String)
+    case onDecodingRow(String)
+    case onInvalidDecodingType(String)
+    case onInvalidSelectStatementColumnCount
+    case onObserveWithoutColumnMetadata
+    case onSubscribeWithoutDatabase
 }
 
-extension SQLite.Error: CustomStringConvertible {
+extension Error: CustomStringConvertible {
     public var description: String {
         func string(for code: Int32) -> String {
             return String(cString: sqlite3_errstr(code))

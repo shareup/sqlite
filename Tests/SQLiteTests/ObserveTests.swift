@@ -1,8 +1,8 @@
 import XCTest
 @testable import SQLite
 
-class SQLiteObserveTests: XCTestCase {
-    var database: SQLite.Database!
+class ObserveTests: XCTestCase {
+    var database: Database!
     var peopleObserver: AnyObject!
     var petsObserver: AnyObject!
     var petOwnersObserver: AnyObject!
@@ -33,11 +33,11 @@ class SQLiteObserveTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        database = try! SQLite.Database(path: ":memory:")
+        database = try! Database(path: ":memory:")
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
-        let encoder = SQLite.Encoder(database)
+        let encoder = Encoder(database)
         try! encoder.encode([_person1, _person2], using: Person.insert)
         try! encoder.encode([_pet1, _pet2], using: Pet.insert)
     }
@@ -55,7 +55,7 @@ class SQLiteObserveTests: XCTestCase {
         do {
             token = try database.observe("NOPE;", block: onUpdatePeople)
             XCTFail()
-        } catch SQLite.Error.onPrepareStatement {
+        } catch Error.onPrepareStatement {
         } catch {
             XCTFail()
         }
@@ -269,7 +269,7 @@ class SQLiteObserveTests: XCTestCase {
     ]
 }
 
-extension SQLiteObserveTests {
+extension ObserveTests {
     private func _observeGetAllPeople() {
         let expectation = self.expectation(description: "People observer notified with initial state")
         expectationAndResultsForPeople = (expectation, [_person1, _person2])
@@ -292,7 +292,7 @@ extension SQLiteObserveTests {
     }
 }
 
-extension SQLiteObserveTests {
+extension ObserveTests {
     private var _person1: Person {
         return Person(id: "1", name: "Anthony", age: 36, title: nil)
     }

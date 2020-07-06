@@ -3,11 +3,11 @@ import XCTest
 #if !canImport(ObjectiveC)
 public func allTests() -> [XCTestCaseEntry] {
     return [
-        testCase(SQLiteCodableTests.allTests),
-        testCase(SQLiteDatabaseTests.allTests),
-        testCase(SQLiteDateFormatterTests.allTests),
-        testCase(SQLiteObserveTests.allTests),
-        testCase(SQLitePublisherTests.allTests),
+        testCase(CodableTests.allTests),
+        testCase(DatabaseTests.allTests),
+        testCase(PreciseDateFormatterTests.allTests),
+        testCase(ObserveTests.allTests),
+        testCase(PublisherTests.allTests),
         testCase(QueryPlanParserTests.allTests),
         testCase(SQLiteRowExtensionsTests.allTests),
     ]

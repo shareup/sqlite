@@ -2,16 +2,16 @@ import XCTest
 import Combine
 @testable import SQLite
 
-class SQLitePublisherTests: XCTestCase {
-    var database: SQLite.Database!
+class PublisherTests: XCTestCase {
+    var database: Database!
 
     override func setUp() {
         super.setUp()
-        database = try! SQLite.Database(path: ":memory:")
+        database = try! Database(path: ":memory:")
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
-        let encoder = SQLite.Encoder(database)
+        let encoder = Encoder(database)
         try! encoder.encode([_person1, _person2], using: Person.insert)
         try! encoder.encode([_pet1, _pet2], using: Pet.insert)
     }
@@ -24,12 +24,12 @@ class SQLitePublisherTests: XCTestCase {
     func testReceivesCompletionWithErrorGivenInvalidSQL() {
         let expectation = self.expectation(description: "Completes with error")
         let publisher = database.publisher("NOPE;")
-        let receiveCompletion: (Subscribers.Completion<Error>) -> Void = { completion in
+        let receiveCompletion: (Subscribers.Completion<Swift.Error>) -> Void = { completion in
             switch completion {
             case .finished:
                 XCTFail("Should have completed with error")
             case .failure(let error):
-                guard case SQLite.Error.onPrepareStatement = error else {
+                guard case Error.onPrepareStatement = error else {
                     return XCTFail("Incorrect error: \(error)")
                 }
             }
@@ -45,7 +45,7 @@ class SQLitePublisherTests: XCTestCase {
     }
 
     func testCancellingForeverCancelsSubscriptions() {
-        let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
+        let publisher: AnyPublisher<Array<Person>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: [[_person1, _person2]])
 
         self.do({
@@ -62,7 +62,7 @@ class SQLitePublisherTests: XCTestCase {
             [_person2.asArguments],
         ]
 
-        let publisher: AnyPublisher<Array<SQLiteRow>, Error> = database.publisher(Person.getAll)
+        let publisher: AnyPublisher<Array<SQLiteRow>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
@@ -77,7 +77,7 @@ class SQLitePublisherTests: XCTestCase {
             [_person2],
         ]
 
-        let publisher: AnyPublisher<Array<Person>, Error> = database.publisher(Person.getAll)
+        let publisher: AnyPublisher<Array<Person>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
@@ -86,7 +86,7 @@ class SQLitePublisherTests: XCTestCase {
 
     func testDeleteFirstWhere() {
         let expectation = self.expectation(description: "Received one person")
-        let publisher: AnyPublisher<Array<Person>, Error> =
+        let publisher: AnyPublisher<Array<Person>, Swift.Error> =
             database.publisher(Person.getAll)
                 .filter({ $0.count == 1 })
                 .eraseToAnyPublisher()
@@ -105,7 +105,7 @@ class SQLitePublisherTests: XCTestCase {
             [_person2.name],
         ]
 
-        let publisher: AnyPublisher<Array<String>, Error> =
+        let publisher: AnyPublisher<Array<String>, Swift.Error> =
             database.publisher(Person.self, Person.getAll)
                 .map { $0.map { $0.name } }
                 .eraseToAnyPublisher()
@@ -131,7 +131,7 @@ class SQLitePublisherTests: XCTestCase {
             [_petOwner1, _petOwner2, petOwner3], // After insert of pet
         ]
 
-        let publisher: AnyPublisher<Array<PetOwner>, Error> = database.publisher(PetOwner.self, PetOwner.getAll)
+        let publisher: AnyPublisher<Array<PetOwner>, Swift.Error> = database.publisher(PetOwner.self, PetOwner.getAll)
 
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try! database.write(Person.insert, arguments: person3.asArguments)
@@ -151,7 +151,7 @@ class SQLitePublisherTests: XCTestCase {
     ]
 }
 
-extension SQLitePublisherTests {
+extension PublisherTests {
     private var _person1: Person {
         return Person(id: "1", name: "Anthony", age: 36, title: nil)
     }
@@ -177,7 +177,7 @@ extension SQLitePublisherTests {
     }
 }
 
-private extension SQLitePublisherTests {
+private extension PublisherTests {
     func `do`(_ something: @escaping () -> Void, after firstCheckpoint: CFTimeInterval,
               thenWait secondCheckpoint: CFTimeInterval) {
         let start = CACurrentMediaTime()
@@ -196,7 +196,7 @@ private extension SQLitePublisherTests {
         }
     }
 
-    func sink<T: Equatable, E: Error>(
+    func sink<T: Equatable, E: Swift.Error>(
         for publisher: AnyPublisher<Array<T>, E>,
         shouldFinish: Bool = false,
         expecting expected: Array<Array<T>>,

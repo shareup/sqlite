@@ -1,27 +1,27 @@
 import XCTest
 @testable import SQLite
 
-class SQLiteDateFormatterTests: XCTestCase {
+class PreciseDateFormatterTests: XCTestCase {
     func testCurrentDateSerializesAndDeserializes() {
         let date = Date()
-        let dateAsString = SQLite.DateFormatter.string(from: date)
-        let dateFromString = SQLite.DateFormatter.date(from: dateAsString)
+        let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
+        let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
         XCTAssertNotNil(dateFromString)
         XCTAssertEqual(date, dateFromString)
     }
 
     func testUnixTimestampSerializesAndDeserializes() {
         let date = Date(timeIntervalSince1970: 1534500993.44331)
-        let dateAsString = SQLite.DateFormatter.string(from: date)
-        let dateFromString = SQLite.DateFormatter.date(from: dateAsString)
+        let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
+        let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
         XCTAssertNotNil(dateFromString)
         XCTAssertEqual(date, dateFromString)
     }
 
     func testISO8601DateSerializesAndDeserializes() {
         guard let date = iso8601.date(from: "2018-08-17T10:22:09.995599") else { return XCTFail() }
-        let dateAsString = SQLite.DateFormatter.string(from: date)
-        let dateFromString = SQLite.DateFormatter.date(from: dateAsString)
+        let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
+        let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
         XCTAssertNotNil(dateFromString)
         XCTAssertEqual(date, dateFromString)
     }
