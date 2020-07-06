@@ -1,15 +1,19 @@
-name: ci
-on: push
+name: Swift
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
 jobs:
-  test:
-    runs-on: macOS-latest
+  build:
+    name: Build and Test
+    runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Switch Xcode to latest version
-        run: xcversion select latest
-      - name: Generate Xcode project file
-        run: swift package generate-xcodeproj
-      - name: Build
-        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.1'
-      - name: Test
-        run: xcodebuild -scheme SQLite-Package -destination 'platform=iOS Simulator,name=iPhone 11 Pro,OS=13.1' test | xcpretty
+    - uses: actions/checkout@v2
+    - name: Build
+      run: swift build -v
+    - name: Run tests
+      run: swift test -v
