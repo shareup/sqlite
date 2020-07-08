@@ -1,21 +1,19 @@
 import Foundation
 
-extension SQLite {
-    struct QueryPlanParser {
-        static func tables(in queryPlan: Array<SQLiteRow>,
-                           matching databaseTables: Array<String>) -> Set<String> {
-            let databaseTables = databaseTables.sortedByLongestToShortest()
-            var tables = Set<String>()
-            for row in queryPlan {
-                guard let detail = row["detail"]?.stringValue else { continue }
-                guard let start = detail.tableNameStart else { continue }
-                guard let end = detail.tableNameEnd(startingAt: start, matching: databaseTables) else { continue }
-                let table = detail[start..<end]
-                guard table.isEmpty == false else { continue }
-                tables.insert(String(table))
-            }
-            return tables
+struct QueryPlanParser {
+    static func tables(in queryPlan: Array<SQLiteRow>,
+                       matching databaseTables: Array<String>) -> Set<String> {
+        let databaseTables = databaseTables.sortedByLongestToShortest()
+        var tables = Set<String>()
+        for row in queryPlan {
+            guard let detail = row["detail"]?.stringValue else { continue }
+            guard let start = detail.tableNameStart else { continue }
+            guard let end = detail.tableNameEnd(startingAt: start, matching: databaseTables) else { continue }
+            let table = detail[start..<end]
+            guard table.isEmpty == false else { continue }
+            tables.insert(String(table))
         }
+        return tables
     }
 }
 

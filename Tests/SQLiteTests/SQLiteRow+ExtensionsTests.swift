@@ -3,7 +3,7 @@ import SQLite
 
 class SQLiteRowExtensionsTests: XCTestCase {
     func testBoolValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "false": .integer(0),
             "true": .integer(1),
             "positive": .integer(987654321),
@@ -24,7 +24,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testDataValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "empty": .data(Data()),
             "nonempty": .data("123".data(using: .utf8)!),
         ]
@@ -41,7 +41,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testDoubleValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "zero": .double(0),
             "positive": .double(12345.12345),
             "negative": .double(-12345.12345),
@@ -60,7 +60,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testIntValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "zero": .integer(0),
             "positive": .integer(12345),
             "negative": .integer(-12345),
@@ -79,7 +79,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testInt64ValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "zero": .integer(0),
             "positive": .integer(12345),
             "negative": .integer(-12345),
@@ -98,7 +98,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testStringValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "empty": .text(""),
             "nonempty": .text("This is not empty"),
         ]
@@ -115,7 +115,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalBoolValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(0),
             "null": .null,
         ]
@@ -133,7 +133,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalDataValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "nonnull": .data("123".data(using: .utf8)!),
             "null": .null,
         ]
@@ -151,7 +151,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalDoubleValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "notnull": .double(123.456),
             "null": .null,
         ]
@@ -169,7 +169,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalIntValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(123),
             "null": .null,
         ]
@@ -187,7 +187,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalInt64ValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(123),
             "null": .null,
         ]
@@ -205,7 +205,7 @@ class SQLiteRowExtensionsTests: XCTestCase {
     }
 
     func testOptionalStringValueForKey() {
-        let values: Dictionary<String, SQLite.Value> = [
+        let values: Dictionary<String, SQLiteValue> = [
             "notnull": .text("This is not null"),
             "null": .null,
         ]

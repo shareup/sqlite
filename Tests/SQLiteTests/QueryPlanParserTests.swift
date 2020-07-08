@@ -7,7 +7,7 @@ class QueryPlanParserTests: XCTestCase {
         let tables = ["conversations", "TABLE", "SCAN"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([(1, 0, 0, "SCAN TABLE conversations")])
         let expected: Set<String> = ["conversations"]
-        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        let actual = QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
 
@@ -18,7 +18,7 @@ class QueryPlanParserTests: XCTestCase {
             (4, 0, 0, "SEARCH TABLE first table USING INDEX sqlite_autoindex_first table_1 (id column=?)")
         ])
         let expected: Set<String> = ["first table", "✌🏼 table"]
-        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        let actual = QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
 
@@ -35,7 +35,7 @@ class QueryPlanParserTests: XCTestCase {
             (66, 52, 0, "SCAN TABLE json_each AS USING VIRTUAL TABLE INDEX 1:"),
         ])
         let expected: Set<String> = ["text_messages", "patients"]
-        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        let actual = QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
 
@@ -47,7 +47,7 @@ class QueryPlanParserTests: XCTestCase {
             (10, 3, 0, "SEARCH TABLE ab USING INDEX ab_index"),
         ])
         let expected: Set<String> = ["a", "ab", "abcd"]
-        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        let actual = QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
 
@@ -59,7 +59,7 @@ class QueryPlanParserTests: XCTestCase {
             (10, 3, 0, "SEARCH TABLE | | USING INDEX ab_index"),
         ])
         let expected: Set<String> = ["USING AS", "&&", "| |"]
-        let actual = SQLite.QueryPlanParser.tables(in: queryPlan, matching: tables)
+        let actual = QueryPlanParser.tables(in: queryPlan, matching: tables)
         XCTAssertEqual(expected, actual)
     }
 

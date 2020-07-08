@@ -1,20 +1,18 @@
 import Foundation
 import SQLite3
 
-public typealias SQLiteArguments = Dictionary<String, SQLite.Value>
-public typealias SQLiteRow = Dictionary<String, SQLite.Value>
+public typealias SQLiteArguments = Dictionary<String, SQLiteValue>
+public typealias SQLiteRow = Dictionary<String, SQLiteValue>
 
-extension SQLite {
-    public enum Value: Hashable {
-        case data(Data)
-        case double(Double)
-        case integer(Int64)
-        case null
-        case text(String)
-    }
+public enum SQLiteValue: Hashable {
+    case data(Data)
+    case double(Double)
+    case integer(Int64)
+    case null
+    case text(String)
 }
 
-extension SQLite.Value {
+extension SQLiteValue {
     public var boolValue: Bool? {
         guard case .integer(let int) = self else { return nil }
         return int == 0 ? false : true

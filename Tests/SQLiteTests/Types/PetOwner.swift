@@ -69,7 +69,7 @@ extension Person: SQLiteTransformable {
     }
 
     var asArguments: SQLiteArguments {
-        let titleValue: SQLite.Value
+        let titleValue: SQLiteValue
         if let title = self.title {
             titleValue = .text(title)
         } else {

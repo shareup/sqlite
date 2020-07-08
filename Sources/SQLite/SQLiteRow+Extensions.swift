@@ -1,6 +1,6 @@
 import Foundation
 
-extension Dictionary where Key == String, Value == SQLite.Value {
+extension Dictionary where Dictionary.Key == String, Dictionary.Value == SQLiteValue {
     public func optionalValue<V>(for key: CodingKey) -> V? {
         return try? value(for: key)
     }
@@ -15,22 +15,22 @@ extension Dictionary where Key == String, Value == SQLite.Value {
 
     public func value<V>(for key: String) throws -> V {
         if String.self == V.self {
-            guard let value = self[key]?.stringValue else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.stringValue else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Int.self == V.self {
-            guard let value = self[key]?.intValue else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.intValue else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Bool.self == V.self {
-            guard let value = self[key]?.boolValue else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.boolValue else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Double.self == V.self {
-            guard let value = self[key]?.doubleValue else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.doubleValue else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Data.self == V.self {
-            guard let value = self[key]?.dataValue else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.dataValue else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Int64.self == V.self {
-            guard let value = self[key]?.int64Value else { throw SQLite.Error.onDecodingRow(key) }
+            guard let value = self[key]?.int64Value else { throw Error.onDecodingRow(key) }
             return value as! V
         } else if Optional<String>.self == V.self {
             return self[key]?.stringValue as! V
@@ -45,7 +45,7 @@ extension Dictionary where Key == String, Value == SQLite.Value {
         } else if Optional<Int64>.self == V.self {
             return self[key]?.int64Value as! V
         } else {
-            throw SQLite.Error.onInvalidDecodingType(String(describing: V.self))
+            throw Error.onInvalidDecodingType(String(describing: V.self))
         }
     }
 }
