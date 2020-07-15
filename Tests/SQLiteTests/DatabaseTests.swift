@@ -134,7 +134,7 @@ class DatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithTypesafeBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
         XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: two)) { (error) in
-            if case Error.onStep(let code, _) = error {
+            if case SQLiteError.onStep(let code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
                 XCTFail("'\(error)' should be 'Error.onStep'")
@@ -147,7 +147,7 @@ class DatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: one)) { (error) in
-            if case Error.onStep(let code, _) = error {
+            if case SQLiteError.onStep(let code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
                 XCTFail("'\(error)' should be 'Error.onStep'")

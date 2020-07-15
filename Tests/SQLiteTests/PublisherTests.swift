@@ -29,7 +29,7 @@ class PublisherTests: XCTestCase {
             case .finished:
                 XCTFail("Should have completed with error")
             case .failure(let error):
-                guard case Error.onPrepareStatement = error else {
+                guard case SQLiteError.onPrepareStatement = error else {
                     return XCTFail("Incorrect error: \(error)")
                 }
             }

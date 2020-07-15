@@ -88,7 +88,7 @@ public final class Database {
 
             let result = try _execute(sql, statement: statement, arguments: arguments)
             if result.isEmpty == false {
-                throw Error.onWrite(result)
+                throw SQLiteError.onWrite(result)
             }
         }
     }
@@ -289,7 +289,7 @@ extension Database {
     private func _observe(_ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main,
                           block: @escaping (Array<SQLiteRow>) -> Void) throws -> (AnyObject, Array<SQLiteRow>) {
         assert(isOnDatabaseQueue)
-        guard self.canObserveDatabase else { throw Error.onObserveWithoutColumnMetadata }
+        guard self.canObserveDatabase else { throw SQLiteError.onObserveWithoutColumnMetadata }
         let statement = try prepare(sql)
         try statement.bind(arguments: arguments)
         let observer = try _monitor.observe(statement: statement, queue: queue, block: block)
@@ -299,7 +299,7 @@ extension Database {
         do {
             let (result, output) = try statement.evaluate()
             if result != SQLITE_DONE && result != SQLITE_INTERRUPT {
-                throw Error.onStep(result, sql)
+                throw SQLiteError.onStep(result, sql)
             }
             return (observer, output)
         } catch {
@@ -319,7 +319,7 @@ extension Database {
         let (result, output) = try statement.evaluate()
 
         if result != SQLITE_DONE && result != SQLITE_INTERRUPT {
-            throw Error.onStep(result, sql)
+            throw SQLiteError.onStep(result, sql)
         }
 
         return output
@@ -340,7 +340,7 @@ extension Database {
         let result = sqlite3_prepare_v2(_connection, sql, -1, &optionalStatement, nil)
         guard SQLITE_OK == result, let statement = optionalStatement else {
             sqlite3_finalize(optionalStatement)
-            throw Error.onPrepareStatement(result, sql)
+            throw SQLiteError.onPrepareStatement(result, sql)
         }
         return statement
     }
@@ -367,13 +367,13 @@ extension Database {
 
         guard SQLITE_OK == result else {
             Database.close(optionalConnection)
-            let error = Error.onOpen(result, path)
+            let error = SQLiteError.onOpen(result, path)
             assertionFailure(error.description)
             throw error
         }
 
         guard let connection = optionalConnection else {
-            let error = Error.onOpen(SQLITE_INTERNAL, path)
+            let error = SQLiteError.onOpen(SQLITE_INTERNAL, path)
             assertionFailure(error.description)
             throw error
         }
@@ -389,7 +389,7 @@ extension Database {
             // clean up the SQLite database connection when the transactions that
             // were preventing the close are finalized.
             // https://sqlite.org/c3ref/close.html
-            let error = Error.onClose(result)
+            let error = SQLiteError.onClose(result)
             assertionFailure(error.description)
         }
     }

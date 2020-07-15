@@ -55,7 +55,7 @@ class ObserveTests: XCTestCase {
         do {
             token = try database.observe("NOPE;", block: onUpdatePeople)
             XCTFail()
-        } catch Error.onPrepareStatement {
+        } catch SQLiteError.onPrepareStatement {
         } catch {
             XCTFail()
         }

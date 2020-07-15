@@ -28,7 +28,7 @@ class Monitor {
     func observe(statement: Statement, queue: DispatchQueue = .main,
                  block: @escaping (Array<SQLiteRow>) -> Void) throws -> AnyObject {
         guard let database = _database else {
-            throw Error.onInternalError("Database is missing")
+            throw SQLiteError.onInternalError("Database is missing")
         }
 
         let tables = try tablesToObserve(for: statement, in: database)
@@ -93,7 +93,7 @@ extension Monitor {
 extension Monitor {
     private func tablesToObserve(for statement: OpaquePointer,
                                  in database: Database) throws -> Set<String> {
-        guard let sql = sqlite3_sql(statement) else { throw Error.onGetSQL }
+        guard let sql = sqlite3_sql(statement) else { throw SQLiteError.onGetSQL }
         let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
         let queryPlan = try database.execute(raw: explain)
         return QueryPlanParser.tables(in: queryPlan, matching: try database.tables())

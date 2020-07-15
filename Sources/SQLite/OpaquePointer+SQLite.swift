@@ -6,7 +6,7 @@ extension Statement {
         for (key, value) in arguments {
             let name = ":\(key)"
             let index = sqlite3_bind_parameter_index(self, name)
-            guard index != 0 else { throw Error.onGetParameterIndex(key) }
+            guard index != 0 else { throw SQLiteError.onGetParameterIndex(key) }
             try bind(value: value, to: index)
         }
     }
@@ -29,7 +29,7 @@ extension Statement {
         }
 
         if SQLITE_OK != result {
-            throw Error.onBindParameter(result, index, value)
+            throw SQLiteError.onBindParameter(result, index, value)
         }
     }
 
@@ -78,7 +78,7 @@ extension Statement {
             guard let cString = sqlite3_column_text(self, column) else { return .null }
             return .text(String(cString: cString))
         default:
-            throw Error.onGetColumnType(type)
+            throw SQLiteError.onGetColumnType(type)
         }
     }
 

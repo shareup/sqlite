@@ -20,7 +20,7 @@ struct Publisher: Combine.Publisher {
 
     public func receive<S: Subscriber>(subscriber: S) where Failure == S.Failure, Output == S.Input {
         guard let database = _database else {
-            return subscriber.receive(completion: .failure(Error.onSubscribeWithoutDatabase))
+            return subscriber.receive(completion: .failure(SQLiteError.onSubscribeWithoutDatabase))
         }
 
         do {

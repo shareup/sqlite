@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-public enum Error: Swift.Error {
+public enum SQLiteError: Error {
     case onInternalError(String)
     case onOpen(Int32, String)
     case onClose(Int32)
@@ -24,7 +24,7 @@ public enum Error: Swift.Error {
     case onSubscribeWithoutDatabase
 }
 
-extension Error: CustomStringConvertible {
+extension SQLiteError: CustomStringConvertible {
     public var description: String {
         func string(for code: Int32) -> String {
             return String(cString: sqlite3_errstr(code))
