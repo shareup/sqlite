@@ -3,7 +3,7 @@ import SQLite3
 @testable import SQLite
 
 class QueryPlanParserTests: XCTestCase {
-    func testColumnsFromSingleTables() {
+    func testColumnsFromSingleTables() throws {
         let tables = ["conversations", "TABLE", "SCAN"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([(1, 0, 0, "SCAN TABLE conversations")])
         let expected: Set<String> = ["conversations"]
@@ -11,7 +11,7 @@ class QueryPlanParserTests: XCTestCase {
         XCTAssertEqual(expected, actual)
     }
 
-    func testColumnsFromMultipleTables() {
+    func testColumnsFromMultipleTables() throws {
         let tables = ["✌🏼 table", "first table", "sqlite_autoindex_✌🏼 table_1", "USING"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
             (1, 0, 0, "SEARCH TABLE ✌🏼 table USING INDEX sqlite_autoindex_✌🏼 table_1 (id column=?)"),
@@ -22,7 +22,7 @@ class QueryPlanParserTests: XCTestCase {
         XCTAssertEqual(expected, actual)
     }
 
-    func testColumnsWithMergesJoinsAndJSON() {
+    func testColumnsWithMergesJoinsAndJSON() throws {
         let tables = ["AS", "text_messages", "providers", "patients", "|||"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
             (1, 0, 0, "MERGE (UNION ALL)"),
@@ -39,7 +39,7 @@ class QueryPlanParserTests: XCTestCase {
         XCTAssertEqual(expected, actual)
     }
 
-    func testColumnsWithSimilarNames() {
+    func testColumnsWithSimilarNames() throws {
         let tables = ["a", "ab", "abc", "abcd"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
             (1, 0, 0, "SCAN TABLE a"),
@@ -51,7 +51,7 @@ class QueryPlanParserTests: XCTestCase {
         XCTAssertEqual(expected, actual)
     }
 
-    func testColumnsWithReservedWordsAndControlCharacters() {
+    func testColumnsWithReservedWordsAndControlCharacters() throws {
         let tables = ["USING", "| |", "AS", "&&", "||", "USING AS"]
         let queryPlan: Array<SQLiteRow> = self.queryPlan([
             (1, 0, 0, "SEARCH TABLE USING AS USING USING_AS_index"),

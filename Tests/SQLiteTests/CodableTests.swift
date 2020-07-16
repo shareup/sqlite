@@ -15,7 +15,7 @@ class CodableTests: XCTestCase {
         database.close()
     }
 
-    func testEncodingWithoutNils() {
+    func testEncodingWithoutNils() throws {
         let toEncode = _noNils
         let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
@@ -23,10 +23,10 @@ class CodableTests: XCTestCase {
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(1, results.count)
-        assert(results[0], equals: _noNils)
+        try assert(results[0], equals: _noNils)
     }
 
-    func testEncodingWithNils() {
+    func testEncodingWithNils() throws {
         let toEncode = _nils
         let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
@@ -34,10 +34,10 @@ class CodableTests: XCTestCase {
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(1, results.count)
-        assert(results[0], equals: _nils)
+        try assert(results[0], equals: _nils)
     }
 
-    func testEncodingMultiple() {
+    func testEncodingMultiple() throws {
         let toEncode = [_noNils, _nils]
         let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
@@ -45,11 +45,11 @@ class CodableTests: XCTestCase {
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
 
         XCTAssertEqual(2, results.count)
-        assert(results[0], equals: _noNils)
-        assert(results[1], equals: _nils)
+        try assert(results[0], equals: _noNils)
+        try assert(results[1], equals: _nils)
     }
 
-    func testUpsertSingle() {
+    func testUpsertSingle() throws {
         let original = _nils
         var updated = original
         updated.uuid = UUID()
@@ -65,10 +65,10 @@ class CodableTests: XCTestCase {
         var results = Array<SQLiteRow>()
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
         XCTAssertEqual(1, results.count)
-        assert(results[0], equals: updated)
+        try assert(results[0], equals: updated)
     }
 
-    func testUpsertMultiple() {
+    func testUpsertMultiple() throws {
         let original1 = _nils
         var updated1 = original1
         updated1.optionalString = "Now it's something"
@@ -90,11 +90,11 @@ class CodableTests: XCTestCase {
         var results = Array<SQLiteRow>()
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
         XCTAssertEqual(2, results.count)
-        assert(results[0], equals: updated2)
-        assert(results[1], equals: updated1)
+        try assert(results[0], equals: updated2)
+        try assert(results[1], equals: updated1)
     }
 
-    func testDecodingWithoutNils() {
+    func testDecodingWithoutNils() throws {
         let toDecode = _noNils
         insert([toDecode])
 
@@ -106,7 +106,7 @@ class CodableTests: XCTestCase {
         XCTAssertEqual(toDecode, decoded)
     }
 
-    func testDecodingWithNils() {
+    func testDecodingWithNils() throws {
         let toDecode = _nils
         insert([toDecode])
 
@@ -118,7 +118,7 @@ class CodableTests: XCTestCase {
         XCTAssertEqual(toDecode, decoded)
     }
 
-    func testDecodingMultiple() {
+    func testDecodingMultiple() throws {
         let toDecode = [_noNils, _nils]
         insert(toDecode)
 
@@ -186,7 +186,7 @@ extension CodableTests {
 }
 
 extension CodableTests {
-    private func assert(_ row: SQLiteRow, equals expected: CodableType) {
+    private func assert(_ row: SQLiteRow, equals expected: CodableType) throws {
         XCTAssertEqual(expected.id, row["id"]?.intValue)
         XCTAssertEqual(expected.string, row["string"]?.stringValue)
         XCTAssertEqual(expected.data, row["data"]?.dataValue)
@@ -205,7 +205,7 @@ extension CodableTests {
             }
             return date
         })
-        let inner = try! decoder.decode(CodableType.Inner.self, from: innerData)
+        let inner = try decoder.decode(CodableType.Inner.self, from: innerData)
         XCTAssertEqual(expected.inner, inner)
     }
 

@@ -21,7 +21,7 @@ class PublisherTests: XCTestCase {
         database.close()
     }
 
-    func testReceivesCompletionWithErrorGivenInvalidSQL() {
+    func testReceivesCompletionWithErrorGivenInvalidSQL() throws {
         let expectation = self.expectation(description: "Completes with error")
         let publisher = database.publisher("NOPE;")
         let receiveCompletion: (Subscribers.Completion<Swift.Error>) -> Void = { completion in
@@ -44,17 +44,17 @@ class PublisherTests: XCTestCase {
         subscriber.cancel()
     }
 
-    func testCancellingForeverCancelsSubscriptions() {
+    func testCancellingForeverCancelsSubscriptions() throws {
         let publisher: AnyPublisher<Array<Person>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: [[_person1, _person2]])
 
-        self.do({
+        try self.do({
             sink.cancel()
-            try! self.database.write(Person.deleteWithID, arguments: ["id": .text(self._person1.id)])
+            try self.database.write(Person.deleteWithID, arguments: ["id": .text(self._person1.id)])
         }, after: 0.05, thenWait: 0.1)
     }
 
-    func testDeleteAsSQLiteRow() {
+    func testDeleteAsSQLiteRow() throws {
         let expectation = self.expectation(description: "Received two notifications")
 
         let expected: Array<Array<SQLiteRow>> = [
@@ -64,12 +64,12 @@ class PublisherTests: XCTestCase {
 
         let publisher: AnyPublisher<Array<SQLiteRow>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
-        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
 
-    func testDelete() {
+    func testDelete() throws {
         let expectation = self.expectation(description: "Received two notifications")
 
         let expected: Array<Array<Person>> = [
@@ -79,12 +79,12 @@ class PublisherTests: XCTestCase {
 
         let publisher: AnyPublisher<Array<Person>, Swift.Error> = database.publisher(Person.getAll)
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
-        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
 
-    func testDeleteFirstWhere() {
+    func testDeleteFirstWhere() throws {
         let expectation = self.expectation(description: "Received one person")
         let publisher: AnyPublisher<Array<Person>, Swift.Error> =
             database.publisher(Person.getAll)
@@ -92,12 +92,12 @@ class PublisherTests: XCTestCase {
                 .eraseToAnyPublisher()
 
         let sink = self.sink(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
-        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
 
-    func testDeleteMappedToName() {
+    func testDeleteMappedToName() throws {
         let expectation = self.expectation(description: "Received two notifications")
 
         let expected: Array<Array<String>> = [
@@ -111,12 +111,12 @@ class PublisherTests: XCTestCase {
                 .eraseToAnyPublisher()
 
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
-        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
 
-    func testInsert() {
+    func testInsert() throws {
         let expectation = self.expectation(description: "Received two notifications")
 
         let person3 = Person(id: "3", name: "New Human", age: 1, title: "newborn")
@@ -134,8 +134,8 @@ class PublisherTests: XCTestCase {
         let publisher: AnyPublisher<Array<PetOwner>, Swift.Error> = database.publisher(PetOwner.self, PetOwner.getAll)
 
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
-        try! database.write(Person.insert, arguments: person3.asArguments)
-        try! database.write(Pet.insert, arguments: pet3.asArguments)
+        try database.write(Person.insert, arguments: person3.asArguments)
+        try database.write(Pet.insert, arguments: pet3.asArguments)
         waitForExpectations(timeout: 0.5)
         sink.cancel()
     }
@@ -178,16 +178,16 @@ extension PublisherTests {
 }
 
 private extension PublisherTests {
-    func `do`(_ something: @escaping () -> Void, after firstCheckpoint: CFTimeInterval,
-              thenWait secondCheckpoint: CFTimeInterval) {
+    func `do`(_ something: @escaping () throws -> Void, after firstCheckpoint: CFTimeInterval,
+              thenWait secondCheckpoint: CFTimeInterval) rethrows {
         let start = CACurrentMediaTime()
-        func performOrWait(_ block: () -> Void, after seconds: CFTimeInterval) -> Bool {
+        func performOrWait(_ block: () throws -> Void, after seconds: CFTimeInterval) rethrows -> Bool {
             guard CACurrentMediaTime() - start >= seconds else { return false }
-            block()
+            try block()
             return true
         }
 
-        while performOrWait(something, after: firstCheckpoint) == false {
+        while try performOrWait(something, after: firstCheckpoint) == false {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
         }
 

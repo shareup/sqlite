@@ -50,7 +50,7 @@ class ObserveTests: XCTestCase {
         database.close()
     }
 
-    func testThrowsGivenInvalidSQL() {
+    func testThrowsGivenInvalidSQL() throws {
         var token: AnyObject! = nil
         do {
             token = try database.observe("NOPE;", block: onUpdatePeople)
@@ -62,24 +62,24 @@ class ObserveTests: XCTestCase {
         XCTAssertNil(token)
     }
 
-    func testDelete() {
+    func testDelete() throws {
         _observeGetAllPeople()
         let expectation = self.expectation(description: "People observer notified")
         self.expectationAndResultsForPeople = (expectation, [_person2])
-        try! database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
+        try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
     }
 
-    func testInsert() {
+    func testInsert() throws {
         _observeGetAllPeople()
         let expectation = self.expectation(description: "People observer notified")
         let insertedPerson = Person(id: "3", name: "3", age: 3, title: "Limo Driver")
         self.expectationAndResultsForPeople = (expectation, [_person1, _person2, insertedPerson])
-        try! database.write(Person.insert, arguments: insertedPerson.asArguments)
+        try database.write(Person.insert, arguments: insertedPerson.asArguments)
         waitForExpectations(timeout: 0.5)
     }
 
-    func testUpdate() {
+    func testUpdate() throws {
         _observeGetAllPeople()
 
         let expectation = self.expectation(description: "People observer notified")
@@ -89,9 +89,9 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [updatedPerson, replacedPerson])
 
-        let success = try! database.inTransaction {
-            try! database.write(Person.insert, arguments: replacedPerson.asArguments)
-            try! database.write(Person.updateTitleWithID, arguments: [
+        let success = try database.inTransaction {
+            try database.write(Person.insert, arguments: replacedPerson.asArguments)
+            try database.write(Person.updateTitleWithID, arguments: [
                 "id": .text("2"), "title": .text("Technical Fellow")
             ])
         }
@@ -100,7 +100,7 @@ class ObserveTests: XCTestCase {
         waitForExpectations(timeout: 0.5)
     }
 
-    func testSQLArgumentsAreRespectedAndMaintained() {
+    func testSQLArgumentsAreRespectedAndMaintained() throws {
         let firstExpectation = self.expectation(description: "People observer notified with initial state")
         expectationAndResultsForPeople = (firstExpectation, [_person1])
 
@@ -126,7 +126,7 @@ class ObserveTests: XCTestCase {
         waitForExpectations(timeout: 0.5)
     }
 
-    func testReceiveResultsOnlyForObservedType() {
+    func testReceiveResultsOnlyForObservedType() throws {
         _observeGetAllPeople()
 
         let expectation = self.expectation(description: "People observer notified")
@@ -138,21 +138,21 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [insertedPerson, replacedPerson])
 
-        let success = try! database.inTransaction {
-            try! database.write(Person.deleteWithID, arguments: ["id": .text("2")])
-            try! database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try! database.write(Person.insert, arguments: replacedPerson.asArguments)
+        let success = try database.inTransaction {
+            try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
+            try database.write(Person.insert, arguments: insertedPerson.asArguments)
+            try database.write(Person.insert, arguments: replacedPerson.asArguments)
 
-            try! database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
-            try! database.write(Pet.insert, arguments: insertedPet.asArguments)
-            try! database.write(Pet.insert, arguments: replacedPet.asArguments)
+            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+            try database.write(Pet.insert, arguments: insertedPet.asArguments)
+            try database.write(Pet.insert, arguments: replacedPet.asArguments)
         }
         XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
 
-    func testReceiveResultsForAllObservedTypes() {
+    func testReceiveResultsForAllObservedTypes() throws {
         _observeGetAllPeople()
         _observeGetAllPets()
 
@@ -167,36 +167,36 @@ class ObserveTests: XCTestCase {
         expectationAndResultsForPeople = (peopleExpectation, [insertedPerson, replacedPerson])
         expectationAndResultsForPets = (petsExpectation, [insertedPet, replacedPet])
 
-        let success = try! database.inTransaction {
-            try! database.write(Person.deleteWithID, arguments: ["id": .text("2")])
-            try! database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try! database.write(Person.insert, arguments: replacedPerson.asArguments)
+        let success = try database.inTransaction {
+            try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
+            try database.write(Person.insert, arguments: insertedPerson.asArguments)
+            try database.write(Person.insert, arguments: replacedPerson.asArguments)
 
-            try! database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
-            try! database.write(Pet.insert, arguments: insertedPet.asArguments)
-            try! database.write(Pet.insert, arguments: replacedPet.asArguments)
+            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+            try database.write(Pet.insert, arguments: insertedPet.asArguments)
+            try database.write(Pet.insert, arguments: replacedPet.asArguments)
         }
         XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
 
-    func testReceiveJoinedResultsAfterDeletion() {
+    func testReceiveJoinedResultsAfterDeletion() throws {
         _observeGetAllPetOwners()
 
         let petOwnersExpectation = self.expectation(description: "Pet Owners observer notified")
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1])
 
-        let success = try! database.inTransaction {
-            try! database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+        let success = try database.inTransaction {
+            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
         }
         XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
 
-    func testReceiveJoinedResultsAfterInsertion() {
+    func testReceiveJoinedResultsAfterInsertion() throws {
         _observeGetAllPetOwners()
 
         let petOwnersExpectation = self.expectation(description: "Pet Owners observer notified")
@@ -207,16 +207,16 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1, _petOwner2, petOwner3])
 
-        let success = try! database.inTransaction {
-            try! database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try! database.write(Pet.insert, arguments: insertedPet.asArguments)
+        let success = try database.inTransaction {
+            try database.write(Person.insert, arguments: insertedPerson.asArguments)
+            try database.write(Pet.insert, arguments: insertedPet.asArguments)
         }
         XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
 
-    func testReceiveJoinedResultsAfterUpdate() {
+    func testReceiveJoinedResultsAfterUpdate() throws {
         _observeGetAllPetOwners()
 
         let petOwnersExpectation = self.expectation(description: "Pet Owners observer notified")
@@ -228,8 +228,8 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [updatedPetOwner, _petOwner2])
 
-        let success = try! database.inTransaction {
-            try! database.write(Pet.updateNameWithRegistrationID, arguments: [
+        let success = try database.inTransaction {
+            try database.write(Pet.updateNameWithRegistrationID, arguments: [
                 "name": .text("February"),
                 "registration_id": .text("1"),
             ])
@@ -239,7 +239,7 @@ class ObserveTests: XCTestCase {
         waitForExpectations(timeout: 0.5)
     }
 
-    func testObserverIsNotRetained() {
+    func testObserverIsNotRetained() throws {
         _observeGetAllPeople()
 
         peopleObserver = nil // deallocate observer

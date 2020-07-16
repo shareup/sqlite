@@ -2,7 +2,7 @@ import XCTest
 import SQLite
 
 class SQLiteRowExtensionsTests: XCTestCase {
-    func testBoolValueForKey() {
+    func testBoolValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "false": .integer(0),
             "true": .integer(1),
@@ -17,13 +17,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", true),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testDataValueForKey() {
+    func testDataValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "empty": .data(Data()),
             "nonempty": .data("123".data(using: .utf8)!),
@@ -34,13 +34,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("nonempty", "123".data(using: .utf8)!),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testDoubleValueForKey() {
+    func testDoubleValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "zero": .double(0),
             "positive": .double(12345.12345),
@@ -53,13 +53,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12345.12345),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testIntValueForKey() {
+    func testIntValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "zero": .integer(0),
             "positive": .integer(12345),
@@ -72,13 +72,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12345),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testInt64ValueForKey() {
+    func testInt64ValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "zero": .integer(0),
             "positive": .integer(12345),
@@ -91,13 +91,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12345),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testStringValueForKey() {
+    func testStringValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "empty": .text(""),
             "nonempty": .text("This is not empty"),
@@ -108,13 +108,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("nonempty", "This is not empty"),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalBoolValueForKey() {
+    func testOptionalBoolValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(0),
             "null": .null,
@@ -126,13 +126,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalDataValueForKey() {
+    func testOptionalDataValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "nonnull": .data("123".data(using: .utf8)!),
             "null": .null,
@@ -144,13 +144,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalDoubleValueForKey() {
+    func testOptionalDoubleValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .double(123.456),
             "null": .null,
@@ -162,13 +162,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalIntValueForKey() {
+    func testOptionalIntValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(123),
             "null": .null,
@@ -180,13 +180,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalInt64ValueForKey() {
+    func testOptionalInt64ValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .integer(123),
             "null": .null,
@@ -198,13 +198,13 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 
-    func testOptionalStringValueForKey() {
+    func testOptionalStringValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .text("This is not null"),
             "null": .null,
@@ -216,9 +216,9 @@ class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        expected.forEach { (key, expectedValue) in
-            XCTAssertEqual(expectedValue, try! values.value(for: key))
-            XCTAssertEqual(expectedValue, try! values.value(for: TestCodingKey(stringValue: key)!))
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
 

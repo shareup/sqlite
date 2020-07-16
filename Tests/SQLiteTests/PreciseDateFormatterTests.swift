@@ -2,7 +2,7 @@ import XCTest
 @testable import SQLite
 
 class PreciseDateFormatterTests: XCTestCase {
-    func testCurrentDateSerializesAndDeserializes() {
+    func testCurrentDateSerializesAndDeserializes() throws {
         let date = Date()
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
         let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
@@ -10,7 +10,7 @@ class PreciseDateFormatterTests: XCTestCase {
         XCTAssertEqual(date, dateFromString)
     }
 
-    func testUnixTimestampSerializesAndDeserializes() {
+    func testUnixTimestampSerializesAndDeserializes() throws {
         let date = Date(timeIntervalSince1970: 1534500993.44331)
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
         let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
@@ -18,7 +18,7 @@ class PreciseDateFormatterTests: XCTestCase {
         XCTAssertEqual(date, dateFromString)
     }
 
-    func testISO8601DateSerializesAndDeserializes() {
+    func testISO8601DateSerializesAndDeserializes() throws {
         guard let date = iso8601.date(from: "2018-08-17T10:22:09.995599") else { return XCTFail() }
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
         let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)

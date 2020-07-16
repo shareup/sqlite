@@ -15,36 +15,36 @@ class DatabaseTests: XCTestCase {
         database.close()
     }
 
-    func testDatabaseIsCreated() {
+    func testDatabaseIsCreated() throws {
         let directory = temporaryDirectory()
         let path = (directory as NSString).appendingPathComponent("test.db")
         createDirectory(at: directory)
 
-        let database = try! Database(path: path)
+        let database = try Database(path: path)
         XCTAssertTrue(FileManager().fileExists(atPath: path))
 
         database.close()
         removeDirectory(at: directory)
     }
 
-    func testUserVersion() {
+    func testUserVersion() throws {
         XCTAssertEqual(0, database.userVersion)
 
         database.userVersion = 123
         XCTAssertEqual(123, database.userVersion)
     }
 
-    func testSupportsJSON() {
+    func testSupportsJSON() throws {
         XCTAssertTrue(database.supportsJSON)
     }
 
-    func testCreateTable() {
+    func testCreateTable() throws {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
-        let tableNames = try! database.tables()
+        let tableNames = try database.tables()
         XCTAssertEqual("test", tableNames[0])
     }
 
-    func testTablesAndColumns() {
+    func testTablesAndColumns() throws {
         let createTest2 = """
         CREATE TABLE test2 (
             name TEXT PRIMARY KEY NOT NULL,
@@ -56,12 +56,12 @@ class DatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: createTest2))
 
         let expected = ["test", "test2"]
-        XCTAssertEqual(expected, try! database.tables())
-        XCTAssertEqual(["id1", "uniqueText", "uniqueIndexDouble", "normalDouble"], try! database.columns(in: "test"))
-        XCTAssertEqual(["name", "avatar"], try! database.columns(in: "test2"))
+        XCTAssertEqual(expected, try database.tables())
+        XCTAssertEqual(["id1", "uniqueText", "uniqueIndexDouble", "normalDouble"], try database.columns(in: "test"))
+        XCTAssertEqual(["name", "avatar"], try database.columns(in: "test2"))
     }
 
-    func testInsertAndFetchBlob() {
+    func testInsertAndFetchBlob() throws {
         let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
@@ -73,7 +73,7 @@ class DatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
-    func testInsertAndFetchFloatStringAndData() {
+    func testInsertAndFetchFloatStringAndData() throws {
         let one: SQLiteArguments =
             ["id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)]
         let two: SQLiteArguments =
@@ -91,7 +91,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertAndFetchNullableText() {
+    func testInsertAndFetchNullableText() throws {
         let one: SQLiteArguments = ["id": .text("not null"), "string": .text("so not null")]
         let two: SQLiteArguments = ["id": .text("null"), "string": .null]
 
@@ -107,7 +107,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertAndFetchSQLiteTransformable() {
+    func testInsertAndFetchSQLiteTransformable() throws {
         let one = Transformable(name: "one", age: 1, jobTitle: "boss")
         let two = Transformable(name: "two", age: 2)
 
@@ -127,7 +127,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertTextIntoTypesafeDataColumnFails() {
+    func testInsertTextIntoTypesafeDataColumnFails() throws {
         let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(456), "data": .text(_text)]
 
@@ -142,7 +142,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertNilIntoNonNullDataColumnFails() {
+    func testInsertNilIntoNonNullDataColumnFails() throws {
         let one: SQLiteArguments = ["id": .integer(123), "data": .null]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
@@ -155,7 +155,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertOrReplaceWithSameIDReplacesRows() {
+    func testInsertOrReplaceWithSameIDReplacesRows() throws {
         let one: SQLiteArguments = ["id": .text("1"), "string": .text("one")]
         let two: SQLiteArguments = ["id": .text("2"), "string": .text("two")]
 
@@ -177,7 +177,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertAndFetchValidJSON() {
+    func testInsertAndFetchValidJSON() throws {
         guard database.supportsJSON else { return XCTFail() }
 
         let json = """
@@ -208,10 +208,10 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInsertInvalidJSON() {
+    func testInsertInvalidJSON() throws {
         guard database.supportsJSON else { return XCTFail() }
 
-        try! database.execute(raw: _createTableWithIDAsStringAndNullableString)
+        try database.execute(raw: _createTableWithIDAsStringAndNullableString)
 
         let invalidJSON = "\"text\": What is this supposed to be?"
         let write: SQL = "INSERT INTO test VALUES (:id, json(:string));"
@@ -219,7 +219,7 @@ class DatabaseTests: XCTestCase {
         XCTAssertThrowsError(try database.write(write, arguments: args))
     }
 
-    func testInsertFloatStringAndDataInTransaction() {
+    func testInsertFloatStringAndDataInTransaction() throws {
         let one: SQLiteArguments =
             ["id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)]
         let two: SQLiteArguments =
@@ -251,7 +251,7 @@ class DatabaseTests: XCTestCase {
         }
     }
 
-    func testInvalidInsertOfBlobInTransactionRollsBack() {
+    func testInvalidInsertOfBlobInTransactionRollsBack() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
 
@@ -269,24 +269,24 @@ class DatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
-    func testHasOpenTransactions() {
+    func testHasOpenTransactions() throws {
         func arguments(with id: Int) -> SQLiteArguments {
             return ["id": .integer(Int64(id)), "data": .data(_textData)]
         }
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
 
-        let success1 = try! database.inTransaction {
+        let success1 = try database.inTransaction {
             XCTAssertTrue(database.hasOpenTransactions)
             XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 1)))
         }
         XCTAssertTrue(success1)
         XCTAssertFalse(database.hasOpenTransactions)
 
-        let success2 = try! database.inTransaction {
+        let success2 = try database.inTransaction {
             XCTAssertTrue(database.hasOpenTransactions)
             XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 2)))
-            let success3 = try! database.inTransaction {
+            let success3 = try database.inTransaction {
                 XCTAssertTrue(database.hasOpenTransactions)
                 XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 3)))
             }
