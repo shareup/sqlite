@@ -3,12 +3,12 @@ import SQLite3
 
 class Observer: Hashable {
     weak var monitor: Monitor?
-    let statement: Statement
+    let statement: SQLiteStatement
     let tables: Set<String>
     let queue: DispatchQueue
     let block: (Array<SQLiteRow>) -> Void
 
-    init(monitor: Monitor, statement: Statement, tables: Set<String>,
+    init(monitor: Monitor, statement: SQLiteStatement, tables: Set<String>,
          queue: DispatchQueue, block: @escaping (Array<SQLiteRow>) -> Void) {
         self.monitor = monitor
         self.statement = statement

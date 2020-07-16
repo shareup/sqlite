@@ -17,7 +17,7 @@ class CodableTests: XCTestCase {
 
     func testEncodingWithoutNils() {
         let toEncode = _noNils
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
@@ -28,7 +28,7 @@ class CodableTests: XCTestCase {
 
     func testEncodingWithNils() {
         let toEncode = _nils
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
@@ -39,7 +39,7 @@ class CodableTests: XCTestCase {
 
     func testEncodingMultiple() {
         let toEncode = [_noNils, _nils]
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
         XCTAssertNoThrow(try encoder.encode(toEncode, using: CodableType.insert))
         var results = Array<SQLiteRow>()
         XCTAssertNoThrow(results = try database.read(CodableType.getAll, arguments: [:]))
@@ -57,7 +57,7 @@ class CodableTests: XCTestCase {
         updated.optionalDate = Date(timeIntervalSinceReferenceDate: 123456789)
         updated.inner.optionalBool = false
 
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
 
         XCTAssertNoThrow(try encoder.encode(original, using: CodableType.insert))
         XCTAssertNoThrow(try encoder.encode(updated, using: CodableType.upsert))
@@ -82,7 +82,7 @@ class CodableTests: XCTestCase {
         updated2.optionalDate = nil
         updated2.inner.optionalBool = nil
 
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
 
         XCTAssertNoThrow(try encoder.encode([original1, original2], using: CodableType.insert))
         XCTAssertNoThrow(try encoder.encode([updated1, updated2], using: CodableType.upsert))
@@ -98,7 +98,7 @@ class CodableTests: XCTestCase {
         let toDecode = _noNils
         insert([toDecode])
 
-        let decoder = Decoder(database)
+        let decoder = SQLiteDecoder(database)
         var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
         XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
@@ -110,7 +110,7 @@ class CodableTests: XCTestCase {
         let toDecode = _nils
         insert([toDecode])
 
-        let decoder = Decoder(database)
+        let decoder = SQLiteDecoder(database)
         var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
         XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
@@ -122,7 +122,7 @@ class CodableTests: XCTestCase {
         let toDecode = [_noNils, _nils]
         insert(toDecode)
 
-        let decoder = Decoder(database)
+        let decoder = SQLiteDecoder(database)
         var decoded: Array<CodableType> = []
         XCTAssertNoThrow(decoded = try decoder.decode(
             Array<CodableType>.self, using: CodableType.getAll, arguments: [:]
@@ -201,7 +201,7 @@ extension CodableTests {
             let container = try decoder.singleValueContainer()
             let dateAsString = try container.decode(String.self)
             guard let date = PreciseDateFormatter.date(from: dateAsString) else {
-                throw Decoder.Error.invalidDate(dateAsString)
+                throw SQLiteDecoder.Error.invalidDate(dateAsString)
             }
             return date
         })
@@ -210,7 +210,7 @@ extension CodableTests {
     }
 
     private func insert(_ toInsert: Array<CodableType>) {
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
         do {
             try encoder.encode(toInsert, using: CodableType.insert)
         } catch let error {

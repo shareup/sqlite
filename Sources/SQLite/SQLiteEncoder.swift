@@ -1,6 +1,6 @@
 import Foundation
 
-public final class Encoder {
+public final class SQLiteEncoder {
     public enum Error: Swift.Error {
         case invalidType(Any)
         case invalidValue(Any)
@@ -25,10 +25,10 @@ public final class Encoder {
                 }
             }
             if success == false {
-                throw Encoder.Error.transactionFailed
+                throw SQLiteEncoder.Error.transactionFailed
             }
         } else if let dictionary = value as? Dictionary<AnyHashable, Encodable> {
-            throw Encoder.Error.invalidType(dictionary)
+            throw SQLiteEncoder.Error.invalidType(dictionary)
         } else {
             try value.encode(to: encoder)
             try _database.write(sql, arguments: encoder.encodedArguments)
@@ -113,7 +113,7 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
     }
 
     mutating func encode(_ value: UInt64, forKey key: K) throws {
-        guard value < Int64.max else { throw Encoder.Error.invalidValue(value) }
+        guard value < Int64.max else { throw SQLiteEncoder.Error.invalidValue(value) }
         _storage[key.stringValue] = .integer(Int64(value))
     }
 
@@ -158,7 +158,7 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
         } else {
             let jsonData = try jsonEncoder.encode(value)
             guard let jsonText = String(data: jsonData, encoding: .utf8) else {
-                throw Encoder.Error.invalidJSON(jsonData)
+                throw SQLiteEncoder.Error.invalidJSON(jsonData)
             }
             _storage[key.stringValue] = .text(jsonText)
         }

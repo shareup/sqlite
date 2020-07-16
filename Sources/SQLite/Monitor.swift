@@ -25,7 +25,7 @@ class Monitor {
         removeAllObservers()
     }
 
-    func observe(statement: Statement, queue: DispatchQueue = .main,
+    func observe(statement: SQLiteStatement, queue: DispatchQueue = .main,
                  block: @escaping (Array<SQLiteRow>) -> Void) throws -> AnyObject {
         guard let database = _database else {
             throw SQLiteError.onInternalError("Database is missing")

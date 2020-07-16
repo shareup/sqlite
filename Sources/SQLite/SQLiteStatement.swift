@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-extension Statement {
+extension SQLiteStatement {
     func bind(arguments: SQLiteArguments) throws {
         for (key, value) in arguments {
             let name = ":\(key)"

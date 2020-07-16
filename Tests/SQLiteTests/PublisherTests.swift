@@ -11,7 +11,7 @@ class PublisherTests: XCTestCase {
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
-        let encoder = Encoder(database)
+        let encoder = SQLiteEncoder(database)
         try! encoder.encode([_person1, _person2], using: Person.insert)
         try! encoder.encode([_pet1, _pet2], using: Pet.insert)
     }

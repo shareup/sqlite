@@ -1,6 +1,6 @@
 import Foundation
 
-public final class Decoder {
+public final class SQLiteDecoder {
     public enum Error: Swift.Error {
         case incorrectNumberOfResults(Int)
         case missingValueForKey(String)
@@ -20,7 +20,7 @@ public final class Decoder {
                                      arguments: SQLiteArguments = [:]) throws -> T? {
         let results: Array<T> = try self.decode(Array<T>.self, using: sql, arguments: arguments)
         guard results.count == 0 || results.count == 1 else {
-            throw Decoder.Error.incorrectNumberOfResults(results.count)
+            throw SQLiteDecoder.Error.incorrectNumberOfResults(results.count)
         }
         return results.first
     }
@@ -78,7 +78,7 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
 
     func decodeNil(forKey key: K) throws -> Bool {
         guard let value = _row[key.stringValue] else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
 
         if case .null = value {
@@ -90,105 +90,105 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
 
     func decode(_ type: Bool.Type, forKey key: K) throws -> Bool {
         guard let value = _row[key.stringValue]?.boolValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
 
     func decode(_ type: Int.Type, forKey key: K) throws -> Int {
         guard let value = _row[key.stringValue]?.intValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
 
     func decode(_ type: Int8.Type, forKey key: K) throws -> Int8 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return Int8(value)
     }
 
     func decode(_ type: Int16.Type, forKey key: K) throws -> Int16 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return Int16(value)
     }
 
     func decode(_ type: Int32.Type, forKey key: K) throws -> Int32 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return Int32(value)
     }
 
     func decode(_ type: Int64.Type, forKey key: K) throws -> Int64 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
 
     func decode(_ type: UInt.Type, forKey key: K) throws -> UInt {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return UInt(value)
     }
 
     func decode(_ type: UInt8.Type, forKey key: K) throws -> UInt8 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return UInt8(value)
     }
 
     func decode(_ type: UInt16.Type, forKey key: K) throws -> UInt16 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return UInt16(value)
     }
 
     func decode(_ type: UInt32.Type, forKey key: K) throws -> UInt32 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return UInt32(value)
     }
 
     func decode(_ type: UInt64.Type, forKey key: K) throws -> UInt64 {
         guard let value = _row[key.stringValue]?.int64Value else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return UInt64(value)
     }
 
     func decode(_ type: Float.Type, forKey key: K) throws -> Float {
         guard let value = _row[key.stringValue]?.doubleValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return Float(value)
     }
 
     func decode(_ type: Double.Type, forKey key: K) throws -> Double {
         guard let value = _row[key.stringValue]?.doubleValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
 
     func decode(_ type: String.Type, forKey key: K) throws -> String {
         guard let value = _row[key.stringValue]?.stringValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
 
     func decode(_ type: Data.Type, forKey key: K) throws -> Data {
         guard let value = _row[key.stringValue]?.dataValue else {
-            throw Decoder.Error.missingValueForKey(key.stringValue)
+            throw SQLiteDecoder.Error.missingValueForKey(key.stringValue)
         }
         return value
     }
@@ -198,7 +198,7 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
         if let date = PreciseDateFormatter.date(from: string) {
             return date
         } else {
-            throw Decoder.Error.invalidDate(string)
+            throw SQLiteDecoder.Error.invalidDate(string)
         }
     }
 
@@ -207,7 +207,7 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
         if let url = URL(string: string) {
             return url
         } else {
-            throw Decoder.Error.invalidURL(string)
+            throw SQLiteDecoder.Error.invalidURL(string)
         }
     }
 
@@ -216,7 +216,7 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
         if let uuid = UUID(uuidString: string) {
             return uuid
         } else {
-            throw Decoder.Error.invalidUUID(string)
+            throw SQLiteDecoder.Error.invalidUUID(string)
         }
     }
 
@@ -232,7 +232,7 @@ private class _KeyedContainer<K: CodingKey>: KeyedDecodingContainerProtocol {
         } else {
             let jsonText = try decode(String.self, forKey: key)
             guard let jsonData = jsonText.data(using: .utf8) else {
-                throw Decoder.Error.invalidJSON(jsonText)
+                throw SQLiteDecoder.Error.invalidJSON(jsonText)
             }
             return try jsonDecoder.decode(T.self, from: jsonData)
         }
@@ -262,7 +262,7 @@ private let jsonDecoder: JSONDecoder = {
         let container = try decoder.singleValueContainer()
         let dateAsString = try container.decode(String.self)
         guard let date = PreciseDateFormatter.date(from: dateAsString) else {
-            throw Decoder.Error.invalidDate(dateAsString)
+            throw SQLiteDecoder.Error.invalidDate(dateAsString)
         }
         return date
     })

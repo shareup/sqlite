@@ -37,7 +37,7 @@ public final class Database {
     private let _queueKey = DispatchSpecificKey<Int>()
     private lazy var _queueContext: Int = unsafeBitCast(self, to: Int.self)
 
-    private var _cachedStatements = Dictionary<String, Statement>()
+    private var _cachedStatements = Dictionary<String, SQLiteStatement>()
     private lazy var _monitor: Monitor = { return Monitor(database: self) }()
     private let _hook = Hook()
 
@@ -335,8 +335,8 @@ extension Database {
         }
     }
 
-    private func prepare(_ sql: SQL) throws -> Statement {
-        var optionalStatement: Statement?
+    private func prepare(_ sql: SQL) throws -> SQLiteStatement {
+        var optionalStatement: SQLiteStatement?
         let result = sqlite3_prepare_v2(_connection, sql, -1, &optionalStatement, nil)
         guard SQLITE_OK == result, let statement = optionalStatement else {
             sqlite3_finalize(optionalStatement)
