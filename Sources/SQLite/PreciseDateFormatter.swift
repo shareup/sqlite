@@ -17,3 +17,23 @@ public struct PreciseDateFormatter {
         return Date(timeIntervalSinceReferenceDate: double)
     }
 }
+
+extension KeyedDecodingContainer {
+    public func decodePreciseDate(forKey key: K) throws -> Date {
+        let asString = try self.decode(String.self, forKey: key)
+        guard let date = PreciseDateFormatter.date(from: asString) else {
+            let context = DecodingError.Context(
+                codingPath: self.codingPath,
+                debugDescription: "Could not parse '\(asString)' into Date."
+            )
+            throw Swift.DecodingError.typeMismatch(Date.self, context)
+        }
+        return date
+    }
+}
+
+extension KeyedEncodingContainer {
+    public mutating func encode(preciseDate: Date, forKey key: K) throws {
+        try self.encode(PreciseDateFormatter.string(from: preciseDate), forKey: key)
+    }
+}

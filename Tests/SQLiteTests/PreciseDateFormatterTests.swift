@@ -26,11 +26,43 @@ class PreciseDateFormatterTests: XCTestCase {
         XCTAssertEqual(date, dateFromString)
     }
 
+    func testEncodingAndDecodingPreciseDate() throws {
+        let date = Date(timeIntervalSince1970: 1534500993.44331)
+        let model = Model(date)
+
+        let encoded = try JSONEncoder().encode(model)
+        let decoded = try JSONDecoder().decode(Model.self, from: encoded)
+        XCTAssertEqual(model, decoded)
+    }
+
     static var allTests = [
         ("testCurrentDateSerializesAndDeserializes", testCurrentDateSerializesAndDeserializes),
         ("testUnixTimestampSerializesAndDeserializes", testUnixTimestampSerializesAndDeserializes),
         ("testISO8601DateSerializesAndDeserializes", testISO8601DateSerializesAndDeserializes),
+        ("testEncodingAndDecodingPreciseDate", testEncodingAndDecodingPreciseDate),
     ]
+}
+
+private struct Model: Codable, Equatable {
+    let date: Date
+
+    init(_ date: Date) {
+        self.date = date
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case date
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.date = try container.decodePreciseDate(forKey: .date)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(preciseDate: self.date, forKey: .date)
+    }
 }
 
 private let iso8601: DateFormatter = {
