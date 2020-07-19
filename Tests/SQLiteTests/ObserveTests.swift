@@ -89,13 +89,12 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [updatedPerson, replacedPerson])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Person.insert, arguments: replacedPerson.asArguments)
             try database.write(Person.updateTitleWithID, arguments: [
                 "id": .text("2"), "title": .text("Technical Fellow")
             ])
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
@@ -138,7 +137,7 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [insertedPerson, replacedPerson])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
             try database.write(Person.insert, arguments: insertedPerson.asArguments)
             try database.write(Person.insert, arguments: replacedPerson.asArguments)
@@ -147,7 +146,6 @@ class ObserveTests: XCTestCase {
             try database.write(Pet.insert, arguments: insertedPet.asArguments)
             try database.write(Pet.insert, arguments: replacedPet.asArguments)
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
@@ -167,7 +165,7 @@ class ObserveTests: XCTestCase {
         expectationAndResultsForPeople = (peopleExpectation, [insertedPerson, replacedPerson])
         expectationAndResultsForPets = (petsExpectation, [insertedPet, replacedPet])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
             try database.write(Person.insert, arguments: insertedPerson.asArguments)
             try database.write(Person.insert, arguments: replacedPerson.asArguments)
@@ -176,7 +174,6 @@ class ObserveTests: XCTestCase {
             try database.write(Pet.insert, arguments: insertedPet.asArguments)
             try database.write(Pet.insert, arguments: replacedPet.asArguments)
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
@@ -188,10 +185,9 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
@@ -207,11 +203,10 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1, _petOwner2, petOwner3])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Person.insert, arguments: insertedPerson.asArguments)
             try database.write(Pet.insert, arguments: insertedPet.asArguments)
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }
@@ -228,13 +223,12 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [updatedPetOwner, _petOwner2])
 
-        let success = try database.inTransaction {
+        try database.inTransaction {
             try database.write(Pet.updateNameWithRegistrationID, arguments: [
                 "name": .text("February"),
                 "registration_id": .text("1"),
             ])
         }
-        XCTAssertTrue(success)
 
         waitForExpectations(timeout: 0.5)
     }

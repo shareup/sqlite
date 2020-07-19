@@ -239,9 +239,7 @@ class DatabaseTests: XCTestCase {
             }
         }
 
-        var transactionResult: Bool = false
-        XCTAssertNoThrow(transactionResult = try database.inTransaction(block))
-        XCTAssertTrue(transactionResult)
+        XCTAssertNoThrow(try database.inTransaction(block))
 
         for (id, target) in [1: one, 2: two, 3: three, 4: four, 5: five] {
             var fetched: Array<SQLiteRow> = []
@@ -258,10 +256,8 @@ class DatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
 
-        var transactionResult: Bool = true
         let block = { try self.database.write(self._insertIDAndData, arguments: two) }
-        XCTAssertNoThrow(transactionResult = try database.inTransaction(block))
-        XCTAssertFalse(transactionResult)
+        XCTAssertThrowsError(try database.inTransaction(block))
 
         var fetched: Array<SQLiteRow> = []
         XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .integer(1)]))
@@ -276,24 +272,21 @@ class DatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
 
-        let success1 = try database.inTransaction {
+        try database.inTransaction {
             XCTAssertTrue(database.hasOpenTransactions)
             XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 1)))
         }
-        XCTAssertTrue(success1)
         XCTAssertFalse(database.hasOpenTransactions)
 
-        let success2 = try database.inTransaction {
+        try database.inTransaction {
             XCTAssertTrue(database.hasOpenTransactions)
             XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 2)))
-            let success3 = try database.inTransaction {
+            try database.inTransaction {
                 XCTAssertTrue(database.hasOpenTransactions)
                 XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 3)))
             }
-            XCTAssertTrue(success3)
             XCTAssertTrue(database.hasOpenTransactions)
         }
-        XCTAssertTrue(success2)
         XCTAssertFalse(database.hasOpenTransactions)
     }
 

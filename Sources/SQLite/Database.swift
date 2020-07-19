@@ -62,7 +62,7 @@ public final class Database {
         }
     }
 
-    public func inTransaction(_ block: () throws -> Void) throws -> Bool {
+    public func inTransaction(_ block: () throws -> Void) throws {
         return try sync {
             _transactionCount += 1
             defer { _transactionCount -= 1 }
@@ -71,10 +71,9 @@ public final class Database {
                 try execute(raw: "SAVEPOINT database_transaction;")
                 try block()
                 try execute(raw: "RELEASE SAVEPOINT database_transaction;")
-                return true
             } catch {
                 try execute(raw: "ROLLBACK;")
-                return false;
+                throw error
             }
         }
     }

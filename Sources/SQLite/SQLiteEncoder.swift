@@ -18,13 +18,14 @@ public final class SQLiteEncoder {
         let encoder = _SQLiteEncoder()
 
         if let array = value as? Array<Encodable> {
-            let success = try _database.inTransaction {
-                try array.forEach { (element: Encodable) in
-                    try element.encode(to: encoder)
-                    try _database.write(sql, arguments: encoder.encodedArguments)
+            do {
+                try _database.inTransaction {
+                    try array.forEach { (element: Encodable) in
+                        try element.encode(to: encoder)
+                        try _database.write(sql, arguments: encoder.encodedArguments)
+                    }
                 }
-            }
-            if success == false {
+            } catch {
                 throw SQLiteEncoder.Error.transactionFailed
             }
         } else if let dictionary = value as? Dictionary<AnyHashable, Encodable> {
