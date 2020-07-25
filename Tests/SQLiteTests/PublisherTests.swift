@@ -54,6 +54,16 @@ class PublisherTests: XCTestCase {
         }, after: 0.05, thenWait: 0.1)
     }
 
+    func testReceivesCurrentValuesWhenSubscribing() throws {
+        let expectation = self.expectation(description: "Received current values")
+
+        let expected: Array<Array<SQLiteRow>> = [[_person1.asArguments, _person2.asArguments]]
+        let publisher: AnyPublisher<Array<SQLiteRow>, Swift.Error> = database.publisher(Person.getAll)
+        let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
+        waitForExpectations(timeout: 0.5)
+        sink.cancel()
+    }
+
     func testDeleteAsSQLiteRow() throws {
         let expectation = self.expectation(description: "Received two notifications")
 
@@ -143,6 +153,7 @@ class PublisherTests: XCTestCase {
     static var allTests = [
         ("testReceivesCompletionWithErrorGivenInvalidSQL", testReceivesCompletionWithErrorGivenInvalidSQL),
         ("testCancellingForeverCancelsSubscriptions", testCancellingForeverCancelsSubscriptions),
+        ("testReceivesCurrentValuesWhenSubscribing", testReceivesCurrentValuesWhenSubscribing),
         ("testDeleteAsSQLiteRow", testDeleteAsSQLiteRow),
         ("testDelete", testDelete),
         ("testDeleteFirstWhere", testDeleteFirstWhere),

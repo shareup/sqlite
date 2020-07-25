@@ -25,8 +25,8 @@ struct Publisher: Combine.Publisher {
 
         do {
             let subscription = Subscription(subscriber: AnySubscriber(subscriber))
-            try subscription.observe(_sql, arguments: _arguments, queue: _queue, on: database)
             subscriber.receive(subscription: subscription)
+            try subscription.observe(_sql, arguments: _arguments, queue: _queue, on: database)
         } catch {
             subscriber.receive(completion: .failure(error))
         }
