@@ -29,6 +29,9 @@ extension Dictionary where Dictionary.Key == String, Dictionary.Value == SQLiteV
         } else if Data.self == V.self {
             guard let value = self[key]?.dataValue else { throw SQLiteError.onDecodingRow(key) }
             return value as! V
+        } else if Date.self == V.self {
+            guard let date = date(from: self[key]?.stringValue) else { throw SQLiteError.onDecodingRow(key) }
+            return date as! V
         } else if Int64.self == V.self {
             guard let value = self[key]?.int64Value else { throw SQLiteError.onDecodingRow(key) }
             return value as! V
@@ -42,10 +45,17 @@ extension Dictionary where Dictionary.Key == String, Dictionary.Value == SQLiteV
             return self[key]?.doubleValue as! V
         } else if Optional<Data>.self == V.self {
             return self[key]?.dataValue as! V
+        } else if Optional<Date>.self == V.self {
+            return date(from: self[key]?.stringValue) as! V
         } else if Optional<Int64>.self == V.self {
             return self[key]?.int64Value as! V
         } else {
             throw SQLiteError.onInvalidDecodingType(String(describing: V.self))
         }
     }
+}
+
+private func date(from string: String?) -> Date? {
+    guard let string = string else { return nil }
+    return PreciseDateFormatter.date(from: string)
 }
