@@ -40,6 +40,23 @@ class SQLiteRowExtensionsTests: XCTestCase {
         }
     }
 
+    func testDateValueForKey() throws {
+        let values: Dictionary<String, SQLiteValue> = [
+            "1970": .text(PreciseDateFormatter.string(from: Date(timeIntervalSince1970: 456))),
+            "2001": .text(PreciseDateFormatter.string(from: Date(timeIntervalSinceReferenceDate: 123))),
+        ]
+
+        let expected: Array<(String, Date)> = [
+            ("1970", Date(timeIntervalSince1970: 456)),
+            ("2001", Date(timeIntervalSinceReferenceDate: 123)),
+        ]
+
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
+        }
+    }
+
     func testDoubleValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "zero": .double(0),
@@ -150,6 +167,25 @@ class SQLiteRowExtensionsTests: XCTestCase {
         }
     }
 
+    func testOptionalDateValueForKey() throws {
+        let values: Dictionary<String, SQLiteValue> = [
+            "null": .null,
+            "1970": .text(PreciseDateFormatter.string(from: Date(timeIntervalSince1970: 456))),
+            "2001": .text(PreciseDateFormatter.string(from: Date(timeIntervalSinceReferenceDate: 123))),
+        ]
+
+        let expected: Array<(String, Date?)> = [
+            ("null", nil),
+            ("1970", Date(timeIntervalSince1970: 456)),
+            ("2001", Date(timeIntervalSinceReferenceDate: 123)),
+        ]
+
+        try expected.forEach { (key, expectedValue) in
+            XCTAssertEqual(expectedValue, try values.value(for: key))
+            XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
+        }
+    }
+
     func testOptionalDoubleValueForKey() throws {
         let values: Dictionary<String, SQLiteValue> = [
             "notnull": .double(123.456),
@@ -225,12 +261,14 @@ class SQLiteRowExtensionsTests: XCTestCase {
     static var allTests = [
         ("testBoolValueForKey", testBoolValueForKey),
         ("testDataValueForKey", testDataValueForKey),
+        ("testDateValueForKey", testDateValueForKey),
         ("testDoubleValueForKey", testDoubleValueForKey),
         ("testIntValueForKey", testIntValueForKey),
         ("testInt64ValueForKey", testInt64ValueForKey),
         ("testStringValueForKey", testStringValueForKey),
         ("testOptionalBoolValueForKey", testOptionalBoolValueForKey),
         ("testOptionalDataValueForKey", testOptionalDataValueForKey),
+        ("testOptionalDateValueForKey", testOptionalDateValueForKey),
         ("testOptionalDoubleValueForKey", testOptionalDoubleValueForKey),
         ("testOptionalIntValueForKey", testOptionalIntValueForKey),
         ("testOptionalInt64ValueForKey", testOptionalInt64ValueForKey),
