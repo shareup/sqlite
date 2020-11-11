@@ -264,6 +264,21 @@ class DatabaseTests: XCTestCase {
         XCTAssertEqual(row, one)
     }
 
+    func testReturnValueFromInTransactionWithoutTry() throws {
+        let one: SQLiteArguments = [
+            "id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)
+        ]
+
+        XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
+        XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: one))
+
+        let row = database.inTransaction { db in
+            return try? db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
+        }
+
+        XCTAssertEqual(row, one)
+    }
+
     func testInvalidInsertOfBlobInTransactionRollsBack() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
@@ -321,6 +336,8 @@ class DatabaseTests: XCTestCase {
         ("testInsertAndFetchValidJSON", testInsertAndFetchValidJSON),
         ("testInsertInvalidJSON", testInsertInvalidJSON),
         ("testInsertFloatStringAndDataInTransaction", testInsertFloatStringAndDataInTransaction),
+        ("testReturnValueFromInTransaction", testReturnValueFromInTransaction),
+        ("testReturnValueFromInTransactionWithoutTry", testReturnValueFromInTransactionWithoutTry),
         ("testInvalidInsertOfBlobInTransactionRollsBack", testInvalidInsertOfBlobInTransactionRollsBack),
         ("testHasOpenTransactions", testHasOpenTransactions),
     ]

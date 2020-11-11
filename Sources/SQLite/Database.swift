@@ -62,7 +62,7 @@ public final class Database {
         }
     }
 
-    public func inTransaction<T>(_ block: (Database) throws -> T) throws -> T {
+    public func inTransaction<T>(_ block: (Database) throws -> T) rethrows -> T {
         return try sync {
             _transactionCount += 1
             defer { _transactionCount -= 1 }
