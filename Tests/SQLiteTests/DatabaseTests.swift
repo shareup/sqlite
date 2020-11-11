@@ -296,7 +296,7 @@ class DatabaseTests: XCTestCase {
         try database.inTransaction { db in
             XCTAssertTrue(db.hasOpenTransactions)
             XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 2)))
-            try database.inTransaction { db in
+            try db.inTransaction { db in
                 XCTAssertTrue(db.hasOpenTransactions)
                 XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 3)))
             }
