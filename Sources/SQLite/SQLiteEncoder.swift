@@ -19,10 +19,10 @@ public final class SQLiteEncoder {
 
         if let array = value as? Array<Encodable> {
             do {
-                try _database.inTransaction {
+                try _database.inTransaction { db in
                     try array.forEach { (element: Encodable) in
                         try element.encode(to: encoder)
-                        try _database.write(sql, arguments: encoder.encodedArguments)
+                        try db.write(sql, arguments: encoder.encodedArguments)
                     }
                 }
             } catch {

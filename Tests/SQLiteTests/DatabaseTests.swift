@@ -233,9 +233,9 @@ class DatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
 
-        let block = {
+        let block = { (db: Database) in
             for row in [one, two, three, four, five] {
-                XCTAssertNoThrow(try self.database.write(self._insertIDFloatStringAndData, arguments: row))
+                XCTAssertNoThrow(try db.write(self._insertIDFloatStringAndData, arguments: row))
             }
         }
 
@@ -249,6 +249,21 @@ class DatabaseTests: XCTestCase {
         }
     }
 
+    func testReturnValueFromInTransaction() throws {
+        let one: SQLiteArguments = [
+            "id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)
+        ]
+
+        XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
+        XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: one))
+
+        let row = try database.inTransaction { db in
+            return try db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
+        }
+
+        XCTAssertEqual(row, one)
+    }
+
     func testInvalidInsertOfBlobInTransactionRollsBack() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
@@ -256,7 +271,7 @@ class DatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
 
-        let block = { try self.database.write(self._insertIDAndData, arguments: two) }
+        let block = { try ($0 as Database).write(self._insertIDAndData, arguments: two) }
         XCTAssertThrowsError(try database.inTransaction(block))
 
         var fetched: Array<SQLiteRow> = []
@@ -272,20 +287,20 @@ class DatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
 
-        try database.inTransaction {
+        try database.inTransaction { db in
             XCTAssertTrue(database.hasOpenTransactions)
-            XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 1)))
+            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 1)))
         }
         XCTAssertFalse(database.hasOpenTransactions)
 
-        try database.inTransaction {
-            XCTAssertTrue(database.hasOpenTransactions)
-            XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 2)))
-            try database.inTransaction {
-                XCTAssertTrue(database.hasOpenTransactions)
-                XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: arguments(with: 3)))
+        try database.inTransaction { db in
+            XCTAssertTrue(db.hasOpenTransactions)
+            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 2)))
+            try database.inTransaction { db in
+                XCTAssertTrue(db.hasOpenTransactions)
+                XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 3)))
             }
-            XCTAssertTrue(database.hasOpenTransactions)
+            XCTAssertTrue(db.hasOpenTransactions)
         }
         XCTAssertFalse(database.hasOpenTransactions)
     }

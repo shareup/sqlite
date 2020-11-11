@@ -89,9 +89,9 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [updatedPerson, replacedPerson])
 
-        try database.inTransaction {
-            try database.write(Person.insert, arguments: replacedPerson.asArguments)
-            try database.write(Person.updateTitleWithID, arguments: [
+        try database.inTransaction { db in
+            try db.write(Person.insert, arguments: replacedPerson.asArguments)
+            try db.write(Person.updateTitleWithID, arguments: [
                 "id": .text("2"), "title": .text("Technical Fellow")
             ])
         }
@@ -137,14 +137,14 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPeople = (expectation, [insertedPerson, replacedPerson])
 
-        try database.inTransaction {
-            try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
-            try database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try database.write(Person.insert, arguments: replacedPerson.asArguments)
+        try database.inTransaction { db in
+            try db.write(Person.deleteWithID, arguments: ["id": .text("2")])
+            try db.write(Person.insert, arguments: insertedPerson.asArguments)
+            try db.write(Person.insert, arguments: replacedPerson.asArguments)
 
-            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
-            try database.write(Pet.insert, arguments: insertedPet.asArguments)
-            try database.write(Pet.insert, arguments: replacedPet.asArguments)
+            try db.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+            try db.write(Pet.insert, arguments: insertedPet.asArguments)
+            try db.write(Pet.insert, arguments: replacedPet.asArguments)
         }
 
         waitForExpectations(timeout: 0.5)
@@ -165,14 +165,14 @@ class ObserveTests: XCTestCase {
         expectationAndResultsForPeople = (peopleExpectation, [insertedPerson, replacedPerson])
         expectationAndResultsForPets = (petsExpectation, [insertedPet, replacedPet])
 
-        try database.inTransaction {
-            try database.write(Person.deleteWithID, arguments: ["id": .text("2")])
-            try database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try database.write(Person.insert, arguments: replacedPerson.asArguments)
+        try database.inTransaction { db in
+            try db.write(Person.deleteWithID, arguments: ["id": .text("2")])
+            try db.write(Person.insert, arguments: insertedPerson.asArguments)
+            try db.write(Person.insert, arguments: replacedPerson.asArguments)
 
-            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
-            try database.write(Pet.insert, arguments: insertedPet.asArguments)
-            try database.write(Pet.insert, arguments: replacedPet.asArguments)
+            try db.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+            try db.write(Pet.insert, arguments: insertedPet.asArguments)
+            try db.write(Pet.insert, arguments: replacedPet.asArguments)
         }
 
         waitForExpectations(timeout: 0.5)
@@ -185,8 +185,8 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1])
 
-        try database.inTransaction {
-            try database.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
+        try database.inTransaction { db in
+            try db.write(Pet.deleteWithName, arguments: ["name": .text("小飞球")])
         }
 
         waitForExpectations(timeout: 0.5)
@@ -203,9 +203,9 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [_petOwner1, _petOwner2, petOwner3])
 
-        try database.inTransaction {
-            try database.write(Person.insert, arguments: insertedPerson.asArguments)
-            try database.write(Pet.insert, arguments: insertedPet.asArguments)
+        try database.inTransaction { db in
+            try db.write(Person.insert, arguments: insertedPerson.asArguments)
+            try db.write(Pet.insert, arguments: insertedPet.asArguments)
         }
 
         waitForExpectations(timeout: 0.5)
@@ -223,8 +223,8 @@ class ObserveTests: XCTestCase {
 
         expectationAndResultsForPetOwners = (petOwnersExpectation, [updatedPetOwner, _petOwner2])
 
-        try database.inTransaction {
-            try database.write(Pet.updateNameWithRegistrationID, arguments: [
+        try database.inTransaction { db in
+            try db.write(Pet.updateNameWithRegistrationID, arguments: [
                 "name": .text("February"),
                 "registration_id": .text("1"),
             ])
