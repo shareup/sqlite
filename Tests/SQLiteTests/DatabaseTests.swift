@@ -38,6 +38,108 @@ class DatabaseTests: XCTestCase {
         XCTAssertTrue(database.supportsJSON)
     }
 
+    func testAutoVacuumMode() throws {
+        XCTAssertEqual(.none, database.autoVacuumMode)
+
+        database.autoVacuumMode = .full
+        XCTAssertEqual(.full, database.autoVacuumMode)
+
+        database.autoVacuumMode = .incremental
+        XCTAssertEqual(.incremental, database.autoVacuumMode)
+    }
+
+    func testIncrementalVacuumDoesNotThrowIfModeIsNotIncremental() throws {
+        XCTAssertEqual(.none, database.autoVacuumMode)
+        try database.incrementalVacuum()
+    }
+
+    func testIncrementalVacuum() throws {
+        func getPageCount() throws -> Int {
+            let result = try database.execute(raw: "PRAGMA page_count;").first
+            return try XCTUnwrap(result?["page_count"]?.intValue)
+        }
+
+        database.autoVacuumMode = .incremental
+
+        XCTAssertEqual(1, try getPageCount())
+
+        try database.execute(raw: _createTableWithBlob)
+
+        try database.inTransaction { (db) -> Void in
+            try (0..<1000).forEach { (index) in
+                let args: SQLiteArguments = [
+                    "id": .integer(Int64(index)), "data": .data(_textData)
+                ]
+                try db.write(_insertIDAndData, arguments: args)
+            }
+        }
+
+        XCTAssertGreaterThan(try getPageCount(), 3)
+
+        try database.write("DELETE FROM test;", arguments: [:])
+        try database.incrementalVacuum()
+
+        XCTAssertEqual(3, try getPageCount())
+    }
+
+    func testIncrementalVacuumWithPageCount() throws {
+        func getPageCount() throws -> Int {
+            let result = try database.execute(raw: "PRAGMA page_count;").first
+            return try XCTUnwrap(result?["page_count"]?.intValue)
+        }
+
+        database.autoVacuumMode = .incremental
+
+        XCTAssertEqual(1, try getPageCount())
+
+        try database.execute(raw: _createTableWithBlob)
+
+        try database.inTransaction { (db) -> Void in
+            try (0..<1000).forEach { (index) in
+                let args: SQLiteArguments = [
+                    "id": .integer(Int64(index)), "data": .data(_textData)
+                ]
+                try db.write(_insertIDAndData, arguments: args)
+            }
+        }
+
+        let pageCount = try getPageCount()
+        XCTAssertGreaterThan(pageCount, 3)
+
+        try database.write("DELETE FROM test;", arguments: [:])
+        try database.incrementalVacuum(2)
+
+        XCTAssertEqual(pageCount - 2, try getPageCount())
+    }
+
+    func testVacuum() throws {
+        func getPageCount() throws -> Int {
+            let result = try database.execute(raw: "PRAGMA page_count;").first
+            return try XCTUnwrap(result?["page_count"]?.intValue)
+        }
+
+        XCTAssertEqual(.none, database.autoVacuumMode)
+        XCTAssertEqual(0, try getPageCount())
+
+        try database.execute(raw: _createTableWithBlob)
+
+        try database.inTransaction { (db) -> Void in
+            try (0..<1000).forEach { (index) in
+                let args: SQLiteArguments = [
+                    "id": .integer(Int64(index)), "data": .data(_textData)
+                ]
+                try db.write(_insertIDAndData, arguments: args)
+            }
+        }
+
+        XCTAssertGreaterThan(try getPageCount(), 2)
+
+        try database.write("DELETE FROM test;", arguments: [:])
+        try database.vacuum()
+
+        XCTAssertEqual(2, try getPageCount())
+    }
+
     func testCreateTable() throws {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         let tableNames = try database.tables()

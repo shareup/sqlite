@@ -239,6 +239,54 @@ extension Database {
 }
 
 extension Database {
+    public enum AutoVacuumMode: Int {
+        case none = 0
+        case incremental = 2
+        case full = 1
+
+        fileprivate init?(_ rawValue: Int?) {
+            switch rawValue {
+            case .some(0): self = .none
+            case .some(2): self = .incremental
+            case .some(1): self = .full
+            default: return nil
+            }
+        }
+    }
+
+    public var autoVacuumMode: AutoVacuumMode {
+        get {
+            do {
+                guard let result = try execute(raw: "PRAGMA auto_vacuum;").first
+                else { return .none }
+                return AutoVacuumMode(result["auto_vacuum"]?.intValue) ?? .none
+            } catch {
+                assertionFailure("Could not get auto_vacuum: \(error))")
+                return .none
+            }
+        }
+        set {
+            do { try execute(raw: "PRAGMA auto_vacuum = \(newValue.rawValue);") }
+            catch { assertionFailure("Could not set auto_vacuum to \(newValue): \(error)") }
+        }
+    }
+
+    public func incrementalVacuum(_ pages: Int? = nil) throws {
+        let sql: SQL
+        if let pages = pages {
+            sql = "PRAGMA incremental_vacuum(\(pages));"
+        } else {
+            sql = "PRAGMA incremental_vacuum;"
+        }
+        try execute(raw: sql)
+    }
+
+    public func vacuum() throws {
+        try execute(raw: "VACUUM;")
+    }
+}
+
+extension Database {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
             guard let tableName = tableName else { return }
