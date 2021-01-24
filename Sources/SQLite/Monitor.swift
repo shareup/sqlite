@@ -25,20 +25,29 @@ class Monitor {
         removeAllObservers()
     }
 
-    func observe(statement: SQLiteStatement, queue: DispatchQueue = .main,
-                 block: @escaping (Array<SQLiteRow>) -> Void) throws -> AnyObject {
+    func observe(
+        statement: SQLiteStatement,
+        queue: DispatchQueue = .main,
+        block: @escaping (Array<SQLiteRow>) -> Void
+    ) throws -> AnyObject {
         guard let database = _database else {
             throw SQLiteError.onInternalError("Database is missing")
         }
 
         let tables = try tablesToObserve(for: statement, in: database)
-        assert(tables.isEmpty == false)
+        guard tables.isEmpty == false else { throw SQLiteError.onTryToObserveZeroTables }
 
         if _observers.isEmpty {
             createUpdateCommitAndRollbackHandlers(in: database)
         }
 
-        let observer = Observer(monitor: self, statement: statement, tables: tables, queue: queue, block: block)
+        let observer = Observer(
+            monitor: self,
+            statement: statement,
+            tables: tables,
+            queue: queue,
+            block: block
+        )
         _observers.add(observer: observer)
 
         return observer
@@ -91,8 +100,10 @@ extension Monitor {
 }
 
 extension Monitor {
-    private func tablesToObserve(for statement: OpaquePointer,
-                                 in database: Database) throws -> Set<String> {
+    private func tablesToObserve(
+        for statement: OpaquePointer,
+        in database: Database
+    ) throws -> Set<String> {
         guard let sql = sqlite3_sql(statement) else { throw SQLiteError.onGetSQL }
         let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
         let queryPlan = try database.execute(raw: explain)

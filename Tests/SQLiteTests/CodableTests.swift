@@ -6,7 +6,7 @@ class CodableTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        database = try! Database(path: ":memory:")
+        database = try! Database()
         try! database.execute(raw: CodableType.createTable)
     }
 
@@ -101,7 +101,13 @@ class CodableTests: XCTestCase {
         let decoder = SQLiteDecoder(database)
         var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
-        XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
+        XCTAssertNoThrow(
+            decoded = try decoder.decode(
+                CodableType.self,
+                using: CodableType.getByID,
+                arguments: args
+            )
+        )
 
         XCTAssertEqual(toDecode, decoded)
     }
@@ -113,7 +119,13 @@ class CodableTests: XCTestCase {
         let decoder = SQLiteDecoder(database)
         var decoded: CodableType?
         let args: SQLiteArguments = ["id": .integer(Int64(toDecode.id))]
-        XCTAssertNoThrow(decoded = try decoder.decode(CodableType.self, using: CodableType.getByID, arguments: args))
+        XCTAssertNoThrow(
+            decoded = try decoder.decode(
+                CodableType.self,
+                using: CodableType.getByID,
+                arguments: args
+            )
+        )
 
         XCTAssertEqual(toDecode, decoded)
     }

@@ -10,8 +10,13 @@ class Hook {
     var rollback: (() -> Void)?
 }
 
-func updateHookWrapper(context: UnsafeMutableRawPointer?, operationType: Int32, databaseName: UnsafePointer<Int8>?,
-                       tableName: UnsafePointer<Int8>?, rowid: sqlite3_int64) -> Void {
+func updateHookWrapper(
+    context: UnsafeMutableRawPointer?,
+    operationType: Int32,
+    databaseName: UnsafePointer<Int8>?,
+    tableName: UnsafePointer<Int8>?,
+    rowid: sqlite3_int64
+) -> Void {
     guard let context = context else { return }
     let hook = Unmanaged<Hook>.fromOpaque(context).takeUnretainedValue()
     hook.update?(context, operationType, databaseName, tableName, rowid)

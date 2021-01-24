@@ -41,7 +41,7 @@ public final class Database {
     private lazy var _monitor: Monitor = { return Monitor(database: self) }()
     private let _hook = Hook()
 
-    public init(path: String) throws {
+    public init(path: String = ":memory:") throws {
         _connection = try Database.open(at: path)
         _isOpen = true
         _path = path
@@ -102,7 +102,10 @@ public final class Database {
         }
     }
 
-    public func read<T: SQLiteTransformable>(_ sql: SQL, arguments: SQLiteArguments) throws -> Array<T> {
+    public func read<T: SQLiteTransformable>(
+        _ sql: SQL,
+        arguments: SQLiteArguments
+    ) throws -> Array<T> {
         return try sync {
             let rows: Array<SQLiteRow> = try read(sql, arguments: arguments)
             return try rows.map { try T.init(row: $0) }
@@ -154,9 +157,12 @@ extension Database {
 }
 
 extension Database {
-    public func publisher(_ sql: SQL, arguments: SQLiteArguments = [:],
-                          queue: DispatchQueue = .main) -> AnyPublisher<Array<SQLiteRow>, Swift.Error> {
-        return Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
+    public func publisher(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main
+    ) -> AnyPublisher<Array<SQLiteRow>, Swift.Error> {
+        return SQLitePublisher(database: self, sql: sql, arguments: arguments, queue: queue)
             .eraseToAnyPublisher()
     }
 
@@ -165,41 +171,62 @@ extension Database {
     // Swift can't infer the type. Adding this function that includes the generic type means we don't
     // need to specify the type at the call site using `as Array<T>`.
     // https://forums.swift.org/t/compiler-cannot-infer-the-type-of-a-generic-method-cannot-specialize-a-non-generic-definition/10294
-    public func publisher<T: SQLiteTransformable>
-        (_ type: T.Type, _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main)
-        -> AnyPublisher<Array<T>, Swift.Error> {
-            return publisher(sql, arguments: arguments, queue: queue) as AnyPublisher<Array<T>, Swift.Error>
+    public func publisher<T: SQLiteTransformable>(
+        _ type: T.Type,
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main
+    ) -> AnyPublisher<Array<T>, Swift.Error> {
+        return publisher(sql, arguments: arguments, queue: queue) as AnyPublisher<Array<T>, Swift.Error>
     }
 
     public func publisher<T: SQLiteTransformable>(
-        _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main)
-        -> AnyPublisher<Array<T>, Swift.Error> {
-            return Publisher(database: self, sql: sql, arguments: arguments, queue: queue)
-                .tryMap { try $0.map { try T.init(row: $0) } }
-                .eraseToAnyPublisher()
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main
+    ) -> AnyPublisher<Array<T>, Swift.Error> {
+        return SQLitePublisher(database: self, sql: sql, arguments: arguments, queue: queue)
+            .tryMap { try $0.map { try T.init(row: $0) } }
+            .eraseToAnyPublisher()
     }
 }
 
 extension Database {
-    public func observe(_ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main,
-                        block: @escaping (Array<SQLiteRow>) -> Void) throws -> AnyObject {
+    func observe(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main,
+        block: @escaping (Array<SQLiteRow>) -> Void
+    ) throws -> AnyObject {
         return try sync {
-            let (observer, output) = try _observe(sql, arguments: arguments, queue: queue, block: block)
+            let (observer, output) = try _observe(
+                sql,
+                arguments: arguments,
+                queue: queue,
+                block: block
+            )
             queue.async { block(output) }
             return observer
         }
     }
 
-    public func observe<T: SQLiteTransformable>(
-        _ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main,
-        block: @escaping (Array<T>) -> Void) throws -> AnyObject
-    {
+    func observe<T: SQLiteTransformable>(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main,
+        block: @escaping (Array<T>) -> Void
+    ) throws -> AnyObject {
         return try sync {
             let updateBlock: (Array<SQLiteRow>) -> Void = { (rows: Array<SQLiteRow>) -> Void in
                 let transformed = rows.compactMap { try? T.init(row: $0) }
                 block(transformed)
             }
-            let (observer, output) = try _observe(sql, arguments: arguments, queue: queue, block: updateBlock)
+            let (observer, output) = try _observe(
+                sql,
+                arguments: arguments,
+                queue: queue,
+                block: updateBlock
+            )
 
             var transformed: Array<T> = []
             do {
@@ -213,7 +240,7 @@ extension Database {
         }
     }
 
-    public func remove(observer: AnyObject) throws {
+    func remove(observer: AnyObject) throws {
         sync { _monitor.remove(observer: observer) }
     }
 
@@ -334,8 +361,12 @@ extension Database {
 }
 
 extension Database {
-    private func _observe(_ sql: SQL, arguments: SQLiteArguments = [:], queue: DispatchQueue = .main,
-                          block: @escaping (Array<SQLiteRow>) -> Void) throws -> (AnyObject, Array<SQLiteRow>) {
+    private func _observe(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:],
+        queue: DispatchQueue = .main,
+        block: @escaping (Array<SQLiteRow>) -> Void
+    ) throws -> (AnyObject, Array<SQLiteRow>) {
         assert(isOnDatabaseQueue)
         guard self.canObserveDatabase else { throw SQLiteError.onObserveWithoutColumnMetadata }
         let statement = try prepare(sql)

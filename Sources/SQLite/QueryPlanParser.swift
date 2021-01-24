@@ -1,8 +1,10 @@
 import Foundation
 
 struct QueryPlanParser {
-    static func tables(in queryPlan: Array<SQLiteRow>,
-                       matching databaseTables: Array<String>) -> Set<String> {
+    static func tables(
+        in queryPlan: Array<SQLiteRow>,
+        matching databaseTables: Array<String>
+    ) -> Set<String> {
         let databaseTables = databaseTables.sortedByLongestToShortest()
         var tables = Set<String>()
         for row in queryPlan {
@@ -23,7 +25,10 @@ private extension String {
         return range(of: " TABLE ")?.upperBound
     }
 
-    func tableNameEnd(startingAt start: String.Index, matching databaseTables: Array<String>) -> String.Index? {
+    func tableNameEnd(
+        startingAt start: String.Index,
+        matching databaseTables: Array<String>
+    ) -> String.Index? {
         for table in databaseTables {
             if let end = range(of: table, options: [.anchored], range: start..<endIndex) {
                 return end.upperBound

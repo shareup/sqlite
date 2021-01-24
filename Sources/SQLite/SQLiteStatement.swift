@@ -16,7 +16,13 @@ extension SQLiteStatement {
         switch value {
         case .data(let data):
             result = data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> Int32 in
-                return sqlite3_bind_blob(self, index, bytes.baseAddress, Int32(bytes.count), SQLITE_TRANSIENT)
+                return sqlite3_bind_blob(
+                    self,
+                    index,
+                    bytes.baseAddress,
+                    Int32(bytes.count),
+                    SQLITE_TRANSIENT
+                )
             }
         case .double(let double):
             result = sqlite3_bind_double(self, index, double)

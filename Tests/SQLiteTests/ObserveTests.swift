@@ -33,7 +33,7 @@ class ObserveTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        database = try! Database(path: ":memory:")
+        database = try! Database()
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
