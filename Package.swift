@@ -12,13 +12,13 @@ let package = Package(
             targets: ["SQLite"]),
     ],
     dependencies: [
-        .package(name: "Atomic", url: "https://github.com/shareup/atomic.git", from: "1.0.0"),
+        .package(name: "Synchronized", url: "https://github.com/shareup/synchronized.git", from: "2.1.0")
     ],
     targets: [
         .target(
             name: "SQLite",
             dependencies: [
-                "Atomic",
+                "Synchronized",
             ]),
         .testTarget(
             name: "SQLiteTests",

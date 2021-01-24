@@ -7,7 +7,7 @@ class PublisherTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        database = try! Database(path: ":memory:")
+        database = try! Database()
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
@@ -101,7 +101,12 @@ class PublisherTests: XCTestCase {
                 .filter({ $0.count == 1 })
                 .eraseToAnyPublisher()
 
-        let sink = self.sink(for: publisher, shouldFinish: true, expecting: [[_person2]], expectation: expectation)
+        let sink = self.sink(
+            for: publisher,
+            shouldFinish: true,
+            expecting: [[_person2]],
+            expectation: expectation
+        )
         try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
         waitForExpectations(timeout: 0.5)
         sink.cancel()
@@ -141,7 +146,8 @@ class PublisherTests: XCTestCase {
             [_petOwner1, _petOwner2, petOwner3], // After insert of pet
         ]
 
-        let publisher: AnyPublisher<Array<PetOwner>, Swift.Error> = database.publisher(PetOwner.self, PetOwner.getAll)
+        let publisher: AnyPublisher<Array<PetOwner>, Swift.Error> =
+            database.publisher(PetOwner.self, PetOwner.getAll)
 
         let sink = self.sink(for: publisher, expecting: expected, expectation: expectation)
         try database.write(Person.insert, arguments: person3.asArguments)

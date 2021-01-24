@@ -2,12 +2,12 @@
   "object": {
     "pins": [
       {
-        "package": "Atomic",
-        "repositoryURL": "https://github.com/shareup/atomic.git",
+        "package": "Synchronized",
+        "repositoryURL": "https://github.com/shareup/synchronized.git",
         "state": {
           "branch": null,
-          "revision": "781438953ec4a7eec7d5467024a6d85423bc97b4",
-          "version": "1.0.1"
+          "revision": "e8bbab660d61b4f78fd94c3640f1a03886c326ea",
+          "version": "2.1.0"
         }
       }
     ]

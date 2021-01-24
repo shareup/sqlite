@@ -22,6 +22,7 @@ public enum SQLiteError: Error {
     case onInvalidSelectStatementColumnCount
     case onObserveWithoutColumnMetadata
     case onSubscribeWithoutDatabase
+    case onTryToObserveZeroTables
 }
 
 extension SQLiteError: CustomStringConvertible {
@@ -71,6 +72,8 @@ extension SQLiteError: CustomStringConvertible {
             return "Could not observe database because SQLite was not compiled with SQLITE_ENABLE_COLUMN_METADATA"
         case .onSubscribeWithoutDatabase:
             return "Could not subscribe because the SQLite database has been deallocated"
+        case .onTryToObserveZeroTables:
+            return "Could not observe database because no observable tables were found"
         }
     }
 }

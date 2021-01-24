@@ -7,7 +7,7 @@ class DatabaseTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        database = try! Database(path: ":memory:")
+        database = try! Database()
     }
     
     override func tearDown() {
@@ -159,7 +159,10 @@ class DatabaseTests: XCTestCase {
 
         let expected = ["test", "test2"]
         XCTAssertEqual(expected, try database.tables())
-        XCTAssertEqual(["id1", "uniqueText", "uniqueIndexDouble", "normalDouble"], try database.columns(in: "test"))
+        XCTAssertEqual(
+            ["id1", "uniqueText", "uniqueIndexDouble", "normalDouble"],
+            try database.columns(in: "test")
+        )
         XCTAssertEqual(["name", "avatar"], try database.columns(in: "test2"))
     }
 
@@ -187,7 +190,12 @@ class DatabaseTests: XCTestCase {
 
         for (id, target) in [1: one, 2: two] {
             var fetched: Array<SQLiteRow> = []
-            XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .integer(Int64(id))]))
+            XCTAssertNoThrow(
+                fetched = try database.read(
+                    _selectWhereID,
+                    arguments: ["id": .integer(Int64(id))]
+                )
+            )
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
         }
@@ -219,7 +227,12 @@ class DatabaseTests: XCTestCase {
 
         for (name, target) in ["two": two, "three": nil, "one": one] {
             var fetched: Array<Transformable> = []
-            XCTAssertNoThrow(fetched = try database.read(Transformable.fetchByName, arguments: ["name": .text(name)]))
+            XCTAssertNoThrow(
+                fetched = try database.read(
+                    Transformable.fetchByName,
+                    arguments: ["name": .text(name)]
+                )
+            )
             if let target = target {
                 XCTAssertEqual(1, fetched.count)
                 XCTAssertEqual(target, fetched[0])
@@ -345,7 +358,12 @@ class DatabaseTests: XCTestCase {
 
         for (id, target) in [1: one, 2: two, 3: three, 4: four, 5: five] {
             var fetched: Array<SQLiteRow> = []
-            XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .integer(Int64(id))]))
+            XCTAssertNoThrow(
+                fetched = try database.read(
+                    _selectWhereID,
+                    arguments: ["id": .integer(Int64(id))]
+                )
+            )
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
         }

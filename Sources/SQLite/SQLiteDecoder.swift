@@ -16,8 +16,11 @@ public final class SQLiteDecoder {
         _database = database
     }
 
-    public func decode<T: Decodable>(_ type: T.Type, using sql: SQL,
-                                     arguments: SQLiteArguments = [:]) throws -> T? {
+    public func decode<T: Decodable>(
+        _ type: T.Type,
+        using sql: SQL,
+        arguments: SQLiteArguments = [:]
+    ) throws -> T? {
         let results: Array<T> = try self.decode(Array<T>.self, using: sql, arguments: arguments)
         guard results.count == 0 || results.count == 1 else {
             throw SQLiteDecoder.Error.incorrectNumberOfResults(results.count)
@@ -25,8 +28,11 @@ public final class SQLiteDecoder {
         return results.first
     }
 
-    public func decode<T: Decodable>(_ type: Array<T>.Type, using sql: SQL,
-                                     arguments: SQLiteArguments = [:]) throws -> Array<T> {
+    public func decode<T: Decodable>(
+        _ type: Array<T>.Type,
+        using sql: SQL,
+        arguments: SQLiteArguments = [:]
+    ) throws -> Array<T> {
         let results: Array<SQLiteRow> = try _database.read(sql, arguments: arguments)
         let decoder = _SQLiteDecoder()
         return try results.map { (row: SQLiteRow) in
