@@ -6,13 +6,13 @@ struct SQLitePublisher: Publisher {
     typealias Output = Array<SQLiteRow>
     typealias Failure = Swift.Error
 
-    private weak var _database: Database?
+    private weak var _database: SQLiteDatabase?
     private let _sql: SQL
     private let _arguments: SQLiteArguments
     private let _queue: DispatchQueue
 
     init(
-        database: Database,
+        database: SQLiteDatabase,
         sql: SQL,
         arguments: SQLiteArguments = [:],
         queue: DispatchQueue = .main
@@ -66,7 +66,7 @@ private final class SQLiteSubscription: Subscription {
         _ sql: SQL,
         arguments: SQLiteArguments,
         queue: DispatchQueue,
-        on database: Database
+        on database: SQLiteDatabase
     ) throws {
         let block = { (rows: Array<SQLiteRow>) -> Void in
             queue.async { [weak self] in

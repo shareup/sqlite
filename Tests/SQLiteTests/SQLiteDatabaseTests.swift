@@ -2,12 +2,12 @@ import XCTest
 import SQLite3
 @testable import SQLite
 
-class DatabaseTests: XCTestCase {
-    var database: Database!
+class SQLiteDatabaseTests: XCTestCase {
+    var database: SQLiteDatabase!
     
     override func setUp() {
         super.setUp()
-        database = try! Database()
+        database = try! SQLiteDatabase()
     }
     
     override func tearDown() {
@@ -20,7 +20,7 @@ class DatabaseTests: XCTestCase {
         let path = (directory as NSString).appendingPathComponent("test.db")
         createDirectory(at: directory)
 
-        let database = try Database(path: path)
+        let database = try SQLiteDatabase(path: path)
         XCTAssertTrue(FileManager().fileExists(atPath: path))
 
         database.close()
@@ -348,7 +348,7 @@ class DatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
 
-        let block = { (db: Database) in
+        let block = { (db: SQLiteDatabase) in
             for row in [one, two, three, four, five] {
                 XCTAssertNoThrow(try db.write(self._insertIDFloatStringAndData, arguments: row))
             }
@@ -406,7 +406,7 @@ class DatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
 
-        let block = { try ($0 as Database).write(self._insertIDAndData, arguments: two) }
+        let block = { try ($0 as SQLiteDatabase).write(self._insertIDAndData, arguments: two) }
         XCTAssertThrowsError(try database.inTransaction(block))
 
         var fetched: Array<SQLiteRow> = []
@@ -463,7 +463,7 @@ class DatabaseTests: XCTestCase {
     ]
 }
 
-extension DatabaseTests {
+extension SQLiteDatabaseTests {
     fileprivate var _createTableWithBlob: String {
         return """
         CREATE TABLE test (
@@ -551,7 +551,7 @@ extension DatabaseTests {
     }
 }
 
-extension DatabaseTests {
+extension SQLiteDatabaseTests {
     fileprivate var _text: String {
         return "This is a test string! 我们要试一下！👩‍👩‍👧‍👧👮🏿"
     }
@@ -561,7 +561,7 @@ extension DatabaseTests {
     }
 }
 
-extension DatabaseTests {
+extension SQLiteDatabaseTests {
     fileprivate func temporaryDirectory() -> String {
         return (NSTemporaryDirectory() as NSString).appendingPathComponent("\(arc4random())")
     }

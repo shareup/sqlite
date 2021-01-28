@@ -2,7 +2,7 @@ import XCTest
 @testable import SQLite
 
 class ObserveTests: XCTestCase {
-    var database: Database!
+    var database: SQLiteDatabase!
     var peopleObserver: AnyObject!
     var petsObserver: AnyObject!
     var petOwnersObserver: AnyObject!
@@ -33,7 +33,7 @@ class ObserveTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        database = try! Database()
+        database = try! SQLiteDatabase()
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)

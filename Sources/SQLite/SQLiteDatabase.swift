@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import SQLite3
 
-public final class Database {
+public final class SQLiteDatabase {
     public var userVersion: Int {
         get {
             do {
@@ -42,7 +42,7 @@ public final class Database {
     private let _hook = Hook()
 
     public init(path: String = ":memory:") throws {
-        _connection = try Database.open(at: path)
+        _connection = try SQLiteDatabase.open(at: path)
         _isOpen = true
         _path = path
     }
@@ -58,11 +58,11 @@ public final class Database {
             _cachedStatements.values.forEach { sqlite3_finalize($0) }
             _cachedStatements.removeAll()
             _isOpen = false
-            Database.close(_connection)
+            SQLiteDatabase.close(_connection)
         }
     }
 
-    public func inTransaction<T>(_ block: (Database) throws -> T) rethrows -> T {
+    public func inTransaction<T>(_ block: (SQLiteDatabase) throws -> T) rethrows -> T {
         return try sync {
             _transactionCount += 1
             defer { _transactionCount -= 1 }
@@ -125,7 +125,7 @@ public final class Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     public func tables() throws -> Array<String> {
         return try sync {
             let sql = "SELECT * FROM sqlite_master WHERE type='table';"
@@ -156,7 +156,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     public func publisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
@@ -191,7 +191,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     func observe(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
@@ -249,13 +249,13 @@ extension Database {
     }
 }
 
-extension Database: Equatable {
-    public static func == (lhs: Database, rhs: Database) -> Bool {
+extension SQLiteDatabase: Equatable {
+    public static func == (lhs: SQLiteDatabase, rhs: SQLiteDatabase) -> Bool {
         return lhs._connection == rhs._connection
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     public var supportsJSON: Bool {
         return isCompileOptionEnabled("ENABLE_JSON1")
     }
@@ -265,7 +265,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     public enum AutoVacuumMode: Int {
         case none = 0
         case incremental = 2
@@ -313,7 +313,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
             guard let tableName = tableName else { return }
@@ -360,7 +360,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     private func _observe(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
@@ -388,7 +388,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     private func _execute(_ sql: SQL, statement: OpaquePointer,
                           arguments: SQLiteArguments) throws -> Array<SQLiteRow> {
         assert(isOnDatabaseQueue)
@@ -425,7 +425,7 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     private var isOnDatabaseQueue: Bool {
         return DispatchQueue.getSpecific(key: _queueKey) == _queueContext
     }
@@ -439,13 +439,13 @@ extension Database {
     }
 }
 
-extension Database {
+extension SQLiteDatabase {
     private class func open(at path: String) throws -> OpaquePointer {
         var optionalConnection: OpaquePointer?
         let result = sqlite3_open(path, &optionalConnection)
 
         guard SQLITE_OK == result else {
-            Database.close(optionalConnection)
+            SQLiteDatabase.close(optionalConnection)
             let error = SQLiteError.onOpen(result, path)
             assertionFailure(error.description)
             throw error
