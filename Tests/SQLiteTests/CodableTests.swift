@@ -2,11 +2,11 @@ import XCTest
 @testable import SQLite
 
 class CodableTests: XCTestCase {
-    var database: Database!
+    var database: SQLiteDatabase!
 
     override func setUp() {
         super.setUp()
-        database = try! Database()
+        database = try! SQLiteDatabase()
         try! database.execute(raw: CodableType.createTable)
     }
 

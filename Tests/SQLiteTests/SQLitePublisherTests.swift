@@ -2,12 +2,12 @@ import XCTest
 import Combine
 @testable import SQLite
 
-class PublisherTests: XCTestCase {
-    var database: Database!
+class SQLitePublisherTests: XCTestCase {
+    var database: SQLiteDatabase!
 
     override func setUp() {
         super.setUp()
-        database = try! Database()
+        database = try! SQLiteDatabase()
 
         try! database.execute(raw: Person.createTable)
         try! database.execute(raw: Pet.createTable)
@@ -168,7 +168,7 @@ class PublisherTests: XCTestCase {
     ]
 }
 
-extension PublisherTests {
+extension SQLitePublisherTests {
     private var _person1: Person {
         return Person(id: "1", name: "Anthony", age: 36, title: nil)
     }
@@ -194,7 +194,7 @@ extension PublisherTests {
     }
 }
 
-private extension PublisherTests {
+private extension SQLitePublisherTests {
     func `do`(_ something: @escaping () throws -> Void, after firstCheckpoint: CFTimeInterval,
               thenWait secondCheckpoint: CFTimeInterval) rethrows {
         let start = CACurrentMediaTime()

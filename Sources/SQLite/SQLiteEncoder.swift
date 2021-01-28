@@ -8,9 +8,9 @@ public final class SQLiteEncoder {
         case transactionFailed
     }
 
-    private let _database: Database
+    private let _database: SQLiteDatabase
 
-    public init(_ database: Database) {
+    public init(_ database: SQLiteDatabase) {
         _database = database
     }
 

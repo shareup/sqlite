@@ -11,13 +11,13 @@ private class WeakObserver {
 }
 
 class Monitor {
-    private weak var _database: Database?
+    private weak var _database: SQLiteDatabase?
     private let _observers = Observers()
     private var _updatedTables = Set<String>()
 
     private var _notificationQueue = DispatchQueue(label: "SQLite.Monitor Notification Queue")
 
-    init(database: Database) {
+    init(database: SQLiteDatabase) {
         _database = database
     }
 
@@ -75,7 +75,7 @@ class Monitor {
 }
 
 extension Monitor {
-    private func createUpdateCommitAndRollbackHandlers(in database: Database) {
+    private func createUpdateCommitAndRollbackHandlers(in database: SQLiteDatabase) {
         database.createUpdateHandler { [weak self] (table) in
             self?._updatedTables.insert(table)
         }
@@ -92,7 +92,7 @@ extension Monitor {
         }
     }
 
-    private func removeUpdateCommitAndRollbackHandlers(in database: Database) {
+    private func removeUpdateCommitAndRollbackHandlers(in database: SQLiteDatabase) {
         database.removeUpdateHandler()
         database.removeCommitHandler()
         database.removeRollbackHandler()
@@ -102,7 +102,7 @@ extension Monitor {
 extension Monitor {
     private func tablesToObserve(
         for statement: OpaquePointer,
-        in database: Database
+        in database: SQLiteDatabase
     ) throws -> Set<String> {
         guard let sql = sqlite3_sql(statement) else { throw SQLiteError.onGetSQL }
         let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"

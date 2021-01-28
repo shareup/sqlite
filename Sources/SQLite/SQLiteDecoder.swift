@@ -10,9 +10,9 @@ public final class SQLiteDecoder {
         case invalidJSON(String)
     }
 
-    private let _database: Database
+    private let _database: SQLiteDatabase
 
-    public init(_ database: Database) {
+    public init(_ database: SQLiteDatabase) {
         _database = database
     }
 
