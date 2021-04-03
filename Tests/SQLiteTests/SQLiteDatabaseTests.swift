@@ -1,5 +1,7 @@
 import XCTest
 import SQLite3
+import Combine
+import CombineTestExtensions
 @testable import SQLite
 
 class SQLiteDatabaseTests: XCTestCase {
@@ -178,6 +180,19 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
+    func testInsertAndFetchBlobWithPublisher() throws {
+        let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
+
+        let ex = database.inTransactionPublisher { (db) -> Array<SQLiteRow> in
+            try db.execute(raw: self._createTableWithBlob)
+            try db.write(self._insertIDAndData, arguments: one)
+            return try db.read(self._selectWhereID, arguments: ["id": .integer(123)])
+        }
+        .expectOutput([one], expectToFinish: true)
+
+        wait(for: [ex], timeout: 2)
+    }
+
     func testInsertAndFetchFloatStringAndData() throws {
         let one: SQLiteArguments =
             ["id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)]
@@ -240,6 +255,27 @@ class SQLiteDatabaseTests: XCTestCase {
                 XCTAssertEqual(0, fetched.count)
             }
         }
+    }
+
+    func testInsertAndFetchSQLiteTransformableWithPublisher() throws {
+        let one = Transformable(name: "one", age: 1, jobTitle: "boss")
+        let two = Transformable(name: "two", age: 2)
+
+        let ex = database.inTransactionPublisher { (db) -> [Transformable] in
+            try db.execute(raw: Transformable.createTable)
+            try db.write(Transformable.insert, arguments: one.asArguments)
+            try db.write(Transformable.insert, arguments: two.asArguments)
+
+            return try ["two", "three", "one"].flatMap { name in
+                try db.read(
+                    Transformable.fetchByName,
+                    arguments: ["name": .text(name)]
+                )
+            }
+        }
+        .expectOutput([two, one], expectToFinish: true)
+
+        wait(for: [ex], timeout: 2)
     }
 
     func testInsertTextIntoTypesafeDataColumnFails() throws {
@@ -415,6 +451,41 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
+    func testInvalidInsertOfBlobInTransactionRollsBackWithPublisher() throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        let ex = database.inTransactionPublisher { (db) -> [SQLiteRow] in
+            try db.execute(raw: self._createTableWithBlob)
+            try db.write(self._insertIDAndData, arguments: one)
+            try db.write(self._insertIDAndData, arguments: two) // throws
+            return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+        }
+        .expectFailure(.onStep(19, "INSERT INTO test VALUES (:id, :data);"))
+
+        wait(for: [ex], timeout: 2)
+
+        XCTAssertEqual([], try database.tables())
+    }
+
+    func testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher() throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        try database.execute(raw: self._createTableWithBlob)
+        try database.write(self._insertIDAndData, arguments: one)
+
+        let ex = database.inTransactionPublisher { (db) -> [SQLiteRow] in
+            try db.write(self._insertIDAndData, arguments: two) // throws
+            return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+        }
+        .expectFailure(.onStep(19, "INSERT INTO test VALUES (:id, :data);"))
+
+        wait(for: [ex], timeout: 2)
+
+        XCTAssertEqual([one], try database.read(self._selectWhereID, arguments: ["id": .integer(1)]))
+    }
+
     func testHasOpenTransactions() throws {
         func arguments(with id: Int) -> SQLiteArguments {
             return ["id": .integer(Int64(id)), "data": .data(_textData)]
@@ -440,6 +511,33 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertFalse(database.hasOpenTransactions)
     }
 
+    func testHasOpenTransactionsWithPublisher() throws {
+        func arguments(with id: Int) -> SQLiteArguments {
+            return ["id": .integer(Int64(id)), "data": .data(_textData)]
+        }
+
+        XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
+
+        XCTAssertFalse(database.hasOpenTransactions)
+
+        let ex = database.inTransactionPublisher { (db) -> Array<SQLiteRow> in
+            XCTAssertTrue(db.hasOpenTransactions)
+
+            try db.write(self._insertIDAndData, arguments: arguments(with: 1))
+            try db.write(self._insertIDAndData, arguments: arguments(with: 2))
+
+            let one = try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+            let two = try db.read(self._selectWhereID, arguments: ["id": .integer(2)])
+
+            XCTAssertTrue(db.hasOpenTransactions)
+
+            return one + two
+        }
+        .expectOutput([arguments(with: 1), arguments(with: 2)], expectToFinish: true)
+
+        wait(for: [ex], timeout: 2)
+    }
+
     static var allTests = [
         ("testDatabaseIsCreated", testDatabaseIsCreated),
         ("testUserVersion", testUserVersion),
@@ -447,9 +545,11 @@ class SQLiteDatabaseTests: XCTestCase {
         ("testCreateTable", testCreateTable),
         ("testTablesAndColumns", testTablesAndColumns),
         ("testInsertAndFetchBlob", testInsertAndFetchBlob),
+        ("testInsertAndFetchBlobWithPublisher", testInsertAndFetchBlobWithPublisher),
         ("testInsertAndFetchFloatStringAndData", testInsertAndFetchFloatStringAndData),
         ("testInsertAndFetchNullableText", testInsertAndFetchNullableText),
         ("testInsertAndFetchSQLiteTransformable", testInsertAndFetchSQLiteTransformable),
+        ("testInsertAndFetchSQLiteTransformableWithPublisher", testInsertAndFetchSQLiteTransformableWithPublisher),
         ("testInsertTextIntoTypesafeDataColumnFails", testInsertTextIntoTypesafeDataColumnFails),
         ("testInsertNilIntoNonNullDataColumnFails", testInsertNilIntoNonNullDataColumnFails),
         ("testInsertOrReplaceWithSameIDReplacesRows", testInsertOrReplaceWithSameIDReplacesRows),
@@ -459,7 +559,10 @@ class SQLiteDatabaseTests: XCTestCase {
         ("testReturnValueFromInTransaction", testReturnValueFromInTransaction),
         ("testReturnValueFromInTransactionWithoutTry", testReturnValueFromInTransactionWithoutTry),
         ("testInvalidInsertOfBlobInTransactionRollsBack", testInvalidInsertOfBlobInTransactionRollsBack),
+        ("testInvalidInsertOfBlobInTransactionRollsBackWithPublisher", testInvalidInsertOfBlobInTransactionRollsBackWithPublisher),
+        ("testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher", testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher),
         ("testHasOpenTransactions", testHasOpenTransactions),
+        ("testHasOpenTransactionsWithPublisher", testHasOpenTransactionsWithPublisher),
     ]
 }
 
@@ -561,12 +664,12 @@ extension SQLiteDatabaseTests {
     }
 }
 
-extension SQLiteDatabaseTests {
-    fileprivate func temporaryDirectory() -> String {
+private extension SQLiteDatabaseTests {
+    func temporaryDirectory() -> String {
         return (NSTemporaryDirectory() as NSString).appendingPathComponent("\(arc4random())")
     }
 
-    fileprivate func createDirectory(at path: String) {
+    func createDirectory(at path: String) {
         let fileManager = FileManager()
 
         do {
@@ -577,7 +680,7 @@ extension SQLiteDatabaseTests {
         }
     }
 
-    fileprivate func removeDirectory(at path: String) {
+    func removeDirectory(at path: String) {
         let fileManager = FileManager()
 
         do {

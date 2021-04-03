@@ -2,6 +2,15 @@
   "object": {
     "pins": [
       {
+        "package": "CombineExtensions",
+        "repositoryURL": "https://github.com/shareup/combine-extensions.git",
+        "state": {
+          "branch": null,
+          "revision": "14a1e4e55d47b1a4cbb346acfe70450fc5868f54",
+          "version": "2.3.0"
+        }
+      },
+      {
         "package": "Synchronized",
         "repositoryURL": "https://github.com/shareup/synchronized.git",
         "state": {

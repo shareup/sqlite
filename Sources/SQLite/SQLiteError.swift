@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-public enum SQLiteError: Error {
+public enum SQLiteError: Error, Equatable {
     case onInternalError(String)
     case onOpen(Int32, String)
     case onClose(Int32)
@@ -11,6 +11,9 @@ public enum SQLiteError: Error {
     case onStep(Int32, String)
     case onWrite(Array<SQLiteRow>)
     case onGetColumnType(Int32)
+    case onBeginTransactionAfterDeallocating
+    case onExecuteQueryWithoutOpenDatabase
+    case onExecuteQueryAfterDeallocating
     case onCreateFunction(String, Int32)
     case onRemoveFunction(String, Int32)
     case onGetColumnInTable(String)
@@ -44,12 +47,18 @@ extension SQLiteError: CustomStringConvertible {
             return "Could not get index for '\(parameterName)'"
         case .onBindParameter(let code, let index, let value):
             return "Could not bind \(value) to \(index): \(string(for: code))"
-        case .onStep(let code, let sql):
-            return "Could not execute SQL '\(sql)': \(string(for: code))"
+        case .onBeginTransactionAfterDeallocating:
+            return "Tried to begin a transaction after deallocating"
+        case .onExecuteQueryWithoutOpenDatabase:
+            return "Tried to execute a query without an open database connection"
+        case .onExecuteQueryAfterDeallocating:
+            return "Tried to execute a query after deallocating"
         case .onWrite(let result):
             return "Write returned results: '\(result)'"
         case .onGetColumnType(let type):
             return "Invalid column type: \(type)"
+        case .onStep(let code, let sql):
+            return "Could not execute SQL '\(sql)': \(string(for: code))"
         case .onCreateFunction(let name, let code):
             return "Could not create function '\(name)': \(string(for: code))"
         case .onRemoveFunction(let name, let code):
