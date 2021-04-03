@@ -76,22 +76,20 @@ extension SQLiteDatabase {
     public func inTransactionPublisher<T>(
         _ block: @escaping (SQLiteDatabase) throws -> T
     ) -> AnyPublisher<T, SQLiteError> {
-        Deferred { [_queue] in
-            Future<T, SQLiteError> { (promise) in
-                _queue.async { [weak self] in
-                    guard let self = self else {
-                        promise(.failure(.onExecuteQueryAfterDeallocating))
-                        return
-                    }
+        SQLiteFuture { [_queue] (promise) in
+            _queue.async { [weak self] in
+                guard let self = self else {
+                    promise(.failure(.onExecuteQueryAfterDeallocating))
+                    return
+                }
 
-                    do {
-                        let result = try self.inTransaction(block)
-                        promise(.success(result))
-                    } catch let error as SQLiteError {
-                        promise(.failure(error))
-                    } catch {
-                        promise(.failure(.onInternalError(error.localizedDescription)))
-                    }
+                do {
+                    let result = try self.inTransaction(block)
+                    promise(.success(result))
+                } catch let error as SQLiteError {
+                    promise(.failure(error))
+                } catch {
+                    promise(.failure(.onInternalError(error.localizedDescription)))
                 }
             }
         }
@@ -516,38 +514,34 @@ extension SQLiteDatabase {
     }
 }
 
-private typealias SQLiteFuture = Deferred<Future<[SQLiteRow], SQLiteError>>
-
 extension SQLiteDatabase {
     private func _executeAsync(
         _ sql: SQL,
         arguments: SQLiteArguments,
         prepareStatement: @escaping () throws -> OpaquePointer,
         resetStatement: @escaping (OpaquePointer) -> Void
-    ) -> SQLiteFuture {
-        Deferred { [_queue] in
-            Future<[SQLiteRow], SQLiteError> { (promise) in
-                _queue.async { [weak self] in
-                    guard let self = self else {
-                        promise(.failure(.onExecuteQueryAfterDeallocating))
-                        return
-                    }
+    ) -> SQLiteFuture<[SQLiteRow]> {
+        SQLiteFuture { [_queue] (promise) in
+            _queue.async { [weak self] in
+                guard let self = self else {
+                    promise(.failure(.onExecuteQueryAfterDeallocating))
+                    return
+                }
 
-                    do {
-                        let statement = try prepareStatement()
-                        defer { resetStatement(statement) }
+                do {
+                    let statement = try prepareStatement()
+                    defer { resetStatement(statement) }
 
-                        let result = try self._execute(
-                            sql,
-                            statement: statement,
-                            arguments: arguments
-                        )
-                        promise(.success(result))
-                    } catch let error as SQLiteError {
-                        promise(.failure(error))
-                    } catch {
-                        promise(.failure(.onInternalError(error.localizedDescription)))
-                    }
+                    let result = try self._execute(
+                        sql,
+                        statement: statement,
+                        arguments: arguments
+                    )
+                    promise(.success(result))
+                } catch let error as SQLiteError {
+                    promise(.failure(error))
+                } catch {
+                    promise(.failure(.onInternalError(error.localizedDescription)))
                 }
             }
         }

@@ -15,7 +15,7 @@ let package = Package(
         .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
-            from: "2.1.0"
+            from: "2.2.0"
         ),
         .package(
             name: "CombineExtensions",
