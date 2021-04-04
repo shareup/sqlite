@@ -159,29 +159,33 @@ private final class SQLiteFutureSubscription<Output>: Subscription, Hashable {
     }
 
     func sendResult(_ result: Result<Output, SQLiteError>) -> Bool {
-        lock.locked { () -> Bool in
+        typealias Sub = AnySubscriber<Output, SQLiteError>
+
+        let (didFinish, sub): (Bool, Sub?) = lock.locked {
             // If we don't have any demand, we return `false` so that
             // `SQLiteFuture` holds on to this subscription until it
             // receives some demand and calls `resultProvider()`.
-            guard hasDemand else { return false }
+            guard hasDemand else { return (false, nil) }
 
             // If we don't have a subscriber, we want to be removed from
             // `SQLiteFuture`'s set of subscriptions. So, we need to
             // return `true`.
-            guard let sub = subscriber else { return true }
+            guard let sub = subscriber else { return (true, nil) }
             subscriber = nil
 
-            switch result {
-            case let .success(output):
-                let _ = sub.receive(output)
-                sub.receive(completion: .finished)
-
-            case let .failure(error):
-                sub.receive(completion: .failure(error))
-            }
-
-            return true
+            return (true, sub)
         }
+
+        switch result {
+        case let .success(output):
+            let _ = sub?.receive(output)
+            sub?.receive(completion: .finished)
+
+        case let .failure(error):
+            sub?.receive(completion: .failure(error))
+        }
+
+        return didFinish
     }
 
     func hash(into hasher: inout Hasher) {
