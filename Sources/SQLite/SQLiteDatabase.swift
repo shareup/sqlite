@@ -603,7 +603,8 @@ extension SQLiteDatabase {
 extension SQLiteDatabase {
     private class func open(at path: String) throws -> OpaquePointer {
         var optionalConnection: OpaquePointer?
-        let result = sqlite3_open(path, &optionalConnection)
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        let result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
 
         guard SQLITE_OK == result else {
             SQLiteDatabase.close(optionalConnection)
