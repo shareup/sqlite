@@ -15,19 +15,19 @@ let package = Package(
         .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
-            from: "2.2.0"
+            from: "2.3.0"
         ),
         .package(
             name: "CombineExtensions",
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "2.3.0"
+            from: "2.5.0"
         )
     ],
     targets: [
         .target(
             name: "SQLite",
             dependencies: [
-                "Synchronized",
+                .product(name: "SynchronizedDynamic", package: "Synchronized"),
             ]),
         .testTarget(
             name: "SQLiteTests",

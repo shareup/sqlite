@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/shareup/combine-extensions.git",
         "state": {
           "branch": null,
-          "revision": "14a1e4e55d47b1a4cbb346acfe70450fc5868f54",
-          "version": "2.3.0"
+          "revision": "5e345bde8fe46aa990585b83844f385450f8c83d",
+          "version": "2.5.0"
         }
       },
       {
@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/shareup/synchronized.git",
         "state": {
           "branch": null,
-          "revision": "3843da8ff2af3e6c3fc30853ed473ba7630e7cfe",
-          "version": "2.2.0"
+          "revision": "56f5956cbd9cf4bcd2f92153c03ae293dffb0987",
+          "version": "2.3.0"
         }
       }
     ]
