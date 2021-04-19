@@ -2,6 +2,7 @@ import Foundation
 import SQLite3
 
 public enum SQLiteError: Error, Equatable {
+    case databaseIsClosed
     case onInternalError(String)
     case onOpen(Int32, String)
     case onClose(Int32)
@@ -12,10 +13,7 @@ public enum SQLiteError: Error, Equatable {
     case onWrite(Array<SQLiteRow>)
     case onGetColumnType(Int32)
     case onBeginTransactionAfterDeallocating
-    case onExecuteQueryWithoutOpenDatabase
     case onExecuteQueryAfterDeallocating
-    case onCreateFunction(String, Int32)
-    case onRemoveFunction(String, Int32)
     case onGetColumnInTable(String)
     case onGetIndexInTable(String)
     case onGetSQL
@@ -28,6 +26,62 @@ public enum SQLiteError: Error, Equatable {
     case onTryToObserveZeroTables
 }
 
+extension SQLiteError {
+    public var code: Int32? {
+        switch self {
+        case .databaseIsClosed:
+            return nil
+        case .onInternalError:
+            return nil
+        case let .onOpen(code, _):
+            return code
+        case let .onClose(code):
+            return code
+        case let .onPrepareStatement(code, _):
+            return code
+        case .onGetParameterIndex:
+            return nil
+        case let .onBindParameter(code, _, _):
+            return code
+        case let .onStep(code, _):
+            return code
+        case .onWrite:
+            return nil
+        case .onGetColumnType:
+            return nil
+        case .onBeginTransactionAfterDeallocating:
+            return nil
+        case .onExecuteQueryAfterDeallocating:
+            return nil
+        case .onGetColumnInTable:
+            return nil
+        case .onGetIndexInTable:
+            return nil
+        case .onGetSQL:
+            return nil
+        case .onInvalidTableName:
+            return nil
+        case .onDecodingRow:
+            return nil
+        case .onInvalidDecodingType:
+            return nil
+        case .onInvalidSelectStatementColumnCount:
+            return nil
+        case .onObserveWithoutColumnMetadata:
+            return nil
+        case .onSubscribeWithoutDatabase:
+            return nil
+        case .onTryToObserveZeroTables:
+            return nil
+        }
+    }
+
+    public var isBusy: Bool {
+        guard let code = code else { return false }
+        return code == SQLITE_BUSY
+    }
+}
+
 extension SQLiteError: CustomStringConvertible {
     public var description: String {
         func string(for code: Int32) -> String {
@@ -35,6 +89,8 @@ extension SQLiteError: CustomStringConvertible {
         }
 
         switch self {
+        case .databaseIsClosed:
+            return "Database is closed"
         case .onInternalError(let error):
             return "Internal error: '\(error)'"
         case .onOpen(let code, let path):
@@ -49,8 +105,6 @@ extension SQLiteError: CustomStringConvertible {
             return "Could not bind \(value) to \(index): \(string(for: code))"
         case .onBeginTransactionAfterDeallocating:
             return "Tried to begin a transaction after deallocating"
-        case .onExecuteQueryWithoutOpenDatabase:
-            return "Tried to execute a query without an open database connection"
         case .onExecuteQueryAfterDeallocating:
             return "Tried to execute a query after deallocating"
         case .onWrite(let result):
@@ -59,10 +113,6 @@ extension SQLiteError: CustomStringConvertible {
             return "Invalid column type: \(type)"
         case .onStep(let code, let sql):
             return "Could not execute SQL '\(sql)': \(string(for: code))"
-        case .onCreateFunction(let name, let code):
-            return "Could not create function '\(name)': \(string(for: code))"
-        case .onRemoveFunction(let name, let code):
-            return "Could not remove function '\(name)': \(string(for: code))"
         case .onGetColumnInTable(let error):
             return "Could not get column in table: \(error)"
         case .onGetIndexInTable(let error):
