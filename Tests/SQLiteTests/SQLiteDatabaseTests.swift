@@ -18,15 +18,38 @@ class SQLiteDatabaseTests: XCTestCase {
     }
 
     func testDatabaseIsCreated() throws {
-        let directory = temporaryDirectory()
-        let path = (directory as NSString).appendingPathComponent("test.db")
-        createDirectory(at: directory)
+        try Sandbox.execute { (directory) in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+            XCTAssertTrue(FileManager().fileExists(atPath: path))
+            db.close()
+        }
+    }
 
-        let database = try SQLiteDatabase(path: path)
-        XCTAssertTrue(FileManager().fileExists(atPath: path))
+    func testReopen() throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(Data("one".utf8))]
+        let two: SQLiteArguments = ["id": .integer(2), "data": .data(Data("two".utf8))]
+        let three: SQLiteArguments = ["id": .integer(3), "data": .data(Data("three".utf8))]
 
-        database.close()
-        removeDirectory(at: directory)
+        try Sandbox.execute { (directory) in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+
+            try db.write(_createTableWithBlob)
+            try db.write(_insertIDAndData, arguments: one)
+            db.close()
+
+            do { try db.write(_insertIDAndData, arguments: two) }
+            catch SQLiteError.databaseIsClosed {}
+
+            try db.reopen()
+            try db.write(_insertIDAndData, arguments: three)
+
+            let rows = try db.read("SELECT * FROM test;")
+            XCTAssertEqual(2, rows.count)
+            XCTAssertEqual(one, rows.first)
+            XCTAssertEqual(three, rows.last)
+        }
     }
 
     func testUserVersion() throws {
@@ -661,32 +684,5 @@ extension SQLiteDatabaseTests {
 
     fileprivate var _textData: Data {
         return _text.data(using: .utf8)!
-    }
-}
-
-private extension SQLiteDatabaseTests {
-    func temporaryDirectory() -> String {
-        return (NSTemporaryDirectory() as NSString).appendingPathComponent("\(arc4random())")
-    }
-
-    func createDirectory(at path: String) {
-        let fileManager = FileManager()
-
-        do {
-            try? fileManager.removeItem(atPath: path)
-            try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
-        } catch let error {
-            assertionFailure("Could not create directory at '\(path)': \(error)")
-        }
-    }
-
-    func removeDirectory(at path: String) {
-        let fileManager = FileManager()
-
-        do {
-            try fileManager.removeItem(atPath: path)
-        } catch let error {
-            assertionFailure("Could not delete directory at '\(path)': \(error)")
-        }
     }
 }

@@ -25,7 +25,7 @@ public final class SQLiteDatabase {
     public var hasOpenTransactions: Bool { return _transactionCount != 0 }
     private var _transactionCount = 0
 
-    private let _connection: OpaquePointer
+    private var _connection: OpaquePointer
     private let _path: String
     private var _isOpen: Bool
 
@@ -55,6 +55,14 @@ public final class SQLiteDatabase {
 
     deinit {
         self.close()
+    }
+
+    public func reopen() throws {
+        try sync {
+            guard !_isOpen else { return }
+            _connection = try SQLiteDatabase.open(at: _path)
+            _isOpen = true
+        }
     }
 
     public func close() {
@@ -181,9 +189,9 @@ extension SQLiteDatabase {
         }
     }
 
-    public func write(_ sql: SQL, arguments: SQLiteArguments) throws {
+    public func write(_ sql: SQL, arguments: SQLiteArguments = [:]) throws {
         try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
             let statement = try self.cachedStatement(for: sql)
             defer { statement.resetAndClearBindings() }
@@ -195,9 +203,9 @@ extension SQLiteDatabase {
         }
     }
 
-    public func read(_ sql: SQL, arguments: SQLiteArguments) throws -> Array<SQLiteRow> {
+    public func read(_ sql: SQL, arguments: SQLiteArguments = [:]) throws -> Array<SQLiteRow> {
         return try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return [] }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
             let statement = try self.cachedStatement(for: sql)
             defer { statement.resetAndClearBindings() }
             return try _execute(sql, statement: statement, arguments: arguments)
@@ -206,7 +214,7 @@ extension SQLiteDatabase {
 
     public func read<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments
+        arguments: SQLiteArguments = [:]
     ) throws -> Array<T> {
         return try sync {
             let rows: Array<SQLiteRow> = try read(sql, arguments: arguments)
@@ -217,7 +225,7 @@ extension SQLiteDatabase {
     @discardableResult
     public func execute(raw sql: SQL) throws -> Array<SQLiteRow> {
         return try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return [] }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
             let statement = try prepare(sql)
             defer { sqlite3_finalize(statement) }
@@ -553,7 +561,7 @@ extension SQLiteDatabase {
         arguments: SQLiteArguments
     ) throws -> [SQLiteRow] {
         assert(isOnDatabaseQueue)
-        guard _isOpen else { throw SQLiteError.onExecuteQueryWithoutOpenDatabase }
+        guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
         try statement.bind(arguments: arguments)
         let (result, output) = try statement.evaluate()
@@ -609,13 +617,11 @@ extension SQLiteDatabase {
         guard SQLITE_OK == result else {
             SQLiteDatabase.close(optionalConnection)
             let error = SQLiteError.onOpen(result, path)
-            assertionFailure(error.description)
             throw error
         }
 
         guard let connection = optionalConnection else {
             let error = SQLiteError.onOpen(SQLITE_INTERNAL, path)
-            assertionFailure(error.description)
             throw error
         }
 
@@ -626,12 +632,11 @@ extension SQLiteDatabase {
         guard let connection = connection else { return }
         let result = sqlite3_close_v2(connection)
         if result != SQLITE_OK {
-            // We don't actually throw here, because the `sqlite3_close_v2()` will
+            // We don't actually throw here, because `sqlite3_close_v2()` will
             // clean up the SQLite database connection when the transactions that
             // were preventing the close are finalized.
             // https://sqlite.org/c3ref/close.html
-            let error = SQLiteError.onClose(result)
-            assertionFailure(error.description)
+            return
         }
     }
 }
