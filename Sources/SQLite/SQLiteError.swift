@@ -5,6 +5,7 @@ public enum SQLiteError: Error, Equatable {
     case databaseIsClosed
     case onInternalError(String)
     case onOpen(Int32, String)
+    case onEnableWAL(Int32)
     case onClose(Int32)
     case onPrepareStatement(Int32, String)
     case onGetParameterIndex(String)
@@ -34,6 +35,8 @@ extension SQLiteError {
         case .onInternalError:
             return nil
         case let .onOpen(code, _):
+            return code
+        case let .onEnableWAL(code):
             return code
         case let .onClose(code):
             return code
@@ -95,6 +98,8 @@ extension SQLiteError: CustomStringConvertible {
             return "Internal error: '\(error)'"
         case .onOpen(let code, let path):
             return "Could not open database at '\(path)': \(string(for: code))"
+        case let .onEnableWAL(code):
+            return "Could not enable WAL mode: \(string(for: code))"
         case .onClose(let code):
             return "Could not close database: \(string(for: code))"
         case .onPrepareStatement(let code, let sql):

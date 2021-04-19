@@ -26,6 +26,24 @@ class SQLiteDatabaseTests: XCTestCase {
         }
     }
 
+    func testDatabaseConnectionIsOpenedInWALMode() throws {
+        let fileManager = FileManager.default
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(Data("one".utf8))]
+
+        try Sandbox.execute { (directory) in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+
+            try db.write(_createTableWithBlob)
+            try db.write(_insertIDAndData, arguments: one)
+
+            XCTAssertTrue(fileManager.fileExists(atPath: path + "-shm"))
+            XCTAssertTrue(fileManager.fileExists(atPath: path + "-wal"))
+
+            db.close()
+        }
+    }
+
     func testReopen() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(Data("one".utf8))]
         let two: SQLiteArguments = ["id": .integer(2), "data": .data(Data("two".utf8))]
@@ -563,6 +581,8 @@ class SQLiteDatabaseTests: XCTestCase {
 
     static var allTests = [
         ("testDatabaseIsCreated", testDatabaseIsCreated),
+        ("testDatabaseConnectionIsOpenedInWALMode", testDatabaseConnectionIsOpenedInWALMode),
+        ("testReopen", testReopen),
         ("testUserVersion", testUserVersion),
         ("testSupportsJSON", testSupportsJSON),
         ("testCreateTable", testCreateTable),

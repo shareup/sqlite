@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import Synchronized
 
 private class WeakObserver {
     weak var observer: Observer?
@@ -10,15 +11,31 @@ private class WeakObserver {
     }
 }
 
-class Monitor {
+class Monitor: NSObject {
     private weak var _database: SQLiteDatabase?
     private let _observers = Observers()
     private var _updatedTables = Set<String>()
 
-    private var _notificationQueue = DispatchQueue(label: "SQLite.Monitor Notification Queue")
+    private let _id: String = UUID().uuidString
+    private let _coordinatorURL: URL?
+    private lazy var _coordinatorQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "app.shareup.sqlite.monitor"
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
 
     init(database: SQLiteDatabase) {
         _database = database
+        _coordinatorURL =
+            database.path == ":memory:" ?
+            nil :
+            URL(
+                fileURLWithPath: database.path.appending("-monitor"),
+                isDirectory: false
+            )
+        super.init()
+        registerFilePresenter()
     }
 
     deinit {
@@ -62,6 +79,7 @@ class Monitor {
     func removeAllObservers() {
         _observers.removeAll()
         cleanUpObservers()
+        removeFilePresenter()
     }
 
     private func cleanUpObservers() {
@@ -85,6 +103,7 @@ extension Monitor {
             guard let database = self._database else { return }
             database.notify(observers: self._observers.matching(tables: self._updatedTables))
             self._updatedTables.removeAll()
+            self.notifyOtherProcesses()
         }
 
         database.createRollbackHandler { [weak self] in
@@ -96,6 +115,47 @@ extension Monitor {
         database.removeUpdateHandler()
         database.removeCommitHandler()
         database.removeRollbackHandler()
+    }
+}
+
+extension Monitor: NSFilePresenter {
+    var presentedItemURL: URL? { _coordinatorURL }
+    var presentedItemOperationQueue: OperationQueue { _coordinatorQueue }
+
+    func registerFilePresenter() {
+        guard let url = _coordinatorURL else { return }
+        touch(url)
+        NSFileCoordinator.addFilePresenter(self)
+    }
+
+    func removeFilePresenter() {
+        NSFileCoordinator.removeFilePresenter(self)
+    }
+
+    func presentedItemDidChange() {
+        _database?.notify(observers: _observers.all)
+    }
+
+    func notifyOtherProcesses() {
+        _coordinatorQueue.addOperation { [weak self] in
+            guard let self = self else { return }
+            guard let url = self._coordinatorURL else { return }
+
+            let coordinator = NSFileCoordinator(filePresenter: self)
+            coordinator.coordinate(
+                writingItemAt: url,
+                options: .forReplacing,
+                error: nil,
+                byAccessor: self.touch
+            )
+        }
+    }
+
+    private var touch: (URL?) -> Void {
+        { [id = _id] (url) in
+            guard let url = url else { return }
+            try? id.write(to: url, atomically: true, encoding: .utf8)
+        }
     }
 }
 
@@ -113,33 +173,50 @@ extension Monitor {
 
 private class Observers {
     private var _observers = Array<WeakObserver>()
+    private let _lock = Lock()
 
-    var isEmpty: Bool { return _observers.isEmpty }
+    var isEmpty: Bool { return _lock.locked { _observers.isEmpty } }
+
+    var all: Array<Observer> {
+        return _lock.locked { _observers.compactMap { $0.observer } }
+    }
 
     func add(observer: Observer) {
-        remove(observer: observer)
-        _observers.append(WeakObserver(observer: observer))
+        _lock.locked {
+            unsafeRemove(observer: observer)
+            _observers.append(WeakObserver(observer: observer))
+        }
     }
 
     func matching(tables: Set<String>) -> Array<Observer> {
-        return _observers
-            .compactMap { $0.observer }
-            .filter { $0.tables.intersects(tables) }
+        return _lock.locked {
+            _observers
+                .compactMap { $0.observer }
+                .filter { $0.tables.intersects(tables) }
+        }
     }
 
     func remove(observer: Observer) {
-        _observers = _observers.compactMap { (weakObserver) -> WeakObserver? in
-            guard let anObserver = weakObserver.observer else { return nil }
-            return observer == anObserver ? nil : weakObserver
+        _lock.locked {
+            unsafeRemove(observer: observer)
         }
     }
 
     func removeAll() {
-        _observers.removeAll()
+        _lock.locked { _observers.removeAll() }
     }
 
     func compact() {
-        _observers = _observers.compactMap { $0.isNil ? nil : $0 }
+        _lock.locked {
+            _observers = _observers.compactMap { $0.isNil ? nil : $0 }
+        }
+    }
+
+    private func unsafeRemove(observer: Observer) {
+        _observers = _observers.compactMap { (weakObserver) -> WeakObserver? in
+            guard let anObserver = weakObserver.observer else { return nil }
+            return observer == anObserver ? nil : weakObserver
+        }
     }
 }
 

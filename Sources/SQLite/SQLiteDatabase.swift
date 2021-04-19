@@ -22,6 +22,8 @@ public final class SQLiteDatabase {
         }
     }
 
+    public var path: String { _path }
+
     public var hasOpenTransactions: Bool { return _transactionCount != 0 }
     private var _transactionCount = 0
 
@@ -31,7 +33,7 @@ public final class SQLiteDatabase {
 
     private lazy var _queue: DispatchQueue = {
         let queue = DispatchQueue(
-            label: "app.shareup.sqlite.sqlitedatabase.queue",
+            label: "app.shareup.sqlite.sqlitedatabase",
             qos: .default,
             attributes: [],
             autoreleaseFrequency: .workItem,
@@ -44,13 +46,14 @@ public final class SQLiteDatabase {
     private lazy var _queueContext: Int = unsafeBitCast(self, to: Int.self)
 
     private var _cachedStatements = Dictionary<String, SQLiteStatement>()
-    private lazy var _monitor: Monitor = { return Monitor(database: self) }()
+    private var _monitor: Monitor!
     private let _hook = Hook()
 
     public init(path: String = ":memory:") throws {
         _connection = try SQLiteDatabase.open(at: path)
         _isOpen = true
         _path = path
+        _monitor = Monitor(database: self)
     }
 
     deinit {
@@ -62,6 +65,7 @@ public final class SQLiteDatabase {
             guard !_isOpen else { return }
             _connection = try SQLiteDatabase.open(at: _path)
             _isOpen = true
+            _monitor = Monitor(database: self)
         }
     }
 
@@ -612,7 +616,7 @@ extension SQLiteDatabase {
     private class func open(at path: String) throws -> OpaquePointer {
         var optionalConnection: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
-        let result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
+        var result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
 
         guard SQLITE_OK == result else {
             SQLiteDatabase.close(optionalConnection)
@@ -624,6 +628,9 @@ extension SQLiteDatabase {
             let error = SQLiteError.onOpen(SQLITE_INTERNAL, path)
             throw error
         }
+
+        result = sqlite3_exec(connection, "PRAGMA journal_mode=WAL;", nil, nil, nil)
+        guard result == SQLITE_OK else { throw SQLiteError.onEnableWAL(result) }
 
         return connection
     }
