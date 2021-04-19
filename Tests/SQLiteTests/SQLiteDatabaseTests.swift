@@ -12,9 +12,9 @@ class SQLiteDatabaseTests: XCTestCase {
         database = try! SQLiteDatabase()
     }
     
-    override func tearDown() {
-        super.tearDown()
-        database.close()
+    override func tearDownWithError() throws {
+        try super.tearDownWithError()
+        try database.close()
     }
 
     func testDatabaseIsCreated() throws {
@@ -22,7 +22,7 @@ class SQLiteDatabaseTests: XCTestCase {
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
             XCTAssertTrue(FileManager().fileExists(atPath: path))
-            db.close()
+            try db.close()
         }
     }
 
@@ -40,7 +40,7 @@ class SQLiteDatabaseTests: XCTestCase {
             XCTAssertTrue(fileManager.fileExists(atPath: path + "-shm"))
             XCTAssertTrue(fileManager.fileExists(atPath: path + "-wal"))
 
-            db.close()
+            try db.close()
         }
     }
 
@@ -55,7 +55,7 @@ class SQLiteDatabaseTests: XCTestCase {
 
             try db.write(_createTableWithBlob)
             try db.write(_insertIDAndData, arguments: one)
-            db.close()
+            try db.close()
 
             do { try db.write(_insertIDAndData, arguments: two) }
             catch SQLiteError.databaseIsClosed {}

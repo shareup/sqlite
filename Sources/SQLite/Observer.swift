@@ -3,13 +3,18 @@ import SQLite3
 
 class Observer: Hashable {
     weak var monitor: Monitor?
-    let statement: SQLiteStatement
+    private(set) var statement: SQLiteStatement?
     let tables: Set<String>
     let queue: DispatchQueue
     let block: (Array<SQLiteRow>) -> Void
 
-    init(monitor: Monitor, statement: SQLiteStatement, tables: Set<String>,
-         queue: DispatchQueue, block: @escaping (Array<SQLiteRow>) -> Void) {
+    init(
+        monitor: Monitor,
+        statement: SQLiteStatement,
+        tables: Set<String>,
+        queue: DispatchQueue,
+        block: @escaping (Array<SQLiteRow>) -> Void
+    ) {
         self.monitor = monitor
         self.statement = statement
         self.tables = tables
@@ -17,8 +22,13 @@ class Observer: Hashable {
         self.block = block
     }
 
-    deinit {
+    func finalize() {
         sqlite3_finalize(statement)
+        statement = nil
+    }
+
+    deinit {
+        finalize()
         monitor?.remove(observer: self)
     }
 

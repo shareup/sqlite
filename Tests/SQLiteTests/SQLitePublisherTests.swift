@@ -1,24 +1,25 @@
 import XCTest
 import Combine
+import CombineTestExtensions
 @testable import SQLite
 
 class SQLitePublisherTests: XCTestCase {
     var database: SQLiteDatabase!
 
-    override func setUp() {
-        super.setUp()
-        database = try! SQLiteDatabase()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        database = try SQLiteDatabase()
 
-        try! database.execute(raw: Person.createTable)
-        try! database.execute(raw: Pet.createTable)
+        try database.execute(raw: Person.createTable)
+        try database.execute(raw: Pet.createTable)
         let encoder = SQLiteEncoder(database)
-        try! encoder.encode([_person1, _person2], using: Person.insert)
-        try! encoder.encode([_pet1, _pet2], using: Pet.insert)
+        try encoder.encode([_person1, _person2], using: Person.insert)
+        try encoder.encode([_pet1, _pet2], using: Pet.insert)
     }
 
-    override func tearDown() {
-        super.tearDown()
-        database.close()
+    override func tearDownWithError() throws {
+        try super.tearDownWithError()
+        try database.close()
     }
 
     func testReceivesCompletionWithErrorGivenInvalidSQL() throws {
@@ -42,6 +43,30 @@ class SQLitePublisherTests: XCTestCase {
         let subscriber = publisher.sink(receiveCompletion: receiveCompletion, receiveValue: receiveValue)
         waitForExpectations(timeout: 0.5)
         subscriber.cancel()
+    }
+
+    func testClosingDatabaseCancelsSubscription() throws {
+        try Sandbox.execute { (directory) in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+
+            try db.write(Person.createTable)
+
+            let ex = db
+                .publisher(Person.self, Person.getAll)
+                .expectOutput([[], [_person1]], failsOnCompletion: true)
+
+            try db.write(Person.insert, arguments: _person1.asArguments)
+
+            wait(for: [ex], timeout: 2)
+
+            try db.close()
+            try db.reopen()
+
+            try db.write(Person.insert, arguments: _person2.asArguments)
+
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+        }
     }
 
     func testCancellingForeverCancelsSubscriptions() throws {

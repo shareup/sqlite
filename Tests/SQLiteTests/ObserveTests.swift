@@ -31,23 +31,23 @@ class ObserveTests: XCTestCase {
         }
     }()
 
-    override func setUp() {
-        super.setUp()
-        database = try! SQLiteDatabase()
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        database = try SQLiteDatabase()
 
-        try! database.execute(raw: Person.createTable)
-        try! database.execute(raw: Pet.createTable)
+        try database.execute(raw: Person.createTable)
+        try database.execute(raw: Pet.createTable)
         let encoder = SQLiteEncoder(database)
-        try! encoder.encode([_person1, _person2], using: Person.insert)
-        try! encoder.encode([_pet1, _pet2], using: Pet.insert)
+        try encoder.encode([_person1, _person2], using: Person.insert)
+        try encoder.encode([_pet1, _pet2], using: Pet.insert)
     }
 
-    override func tearDown() {
-        super.tearDown()
+    override func tearDownWithError() throws {
+        try super.tearDownWithError()
         peopleObserver = nil
         petsObserver = nil
         petOwnersObserver = nil
-        database.close()
+        try database.close()
     }
 
     func testThrowsGivenInvalidSQL() throws {

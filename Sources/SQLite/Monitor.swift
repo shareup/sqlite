@@ -203,7 +203,10 @@ private class Observers {
     }
 
     func removeAll() {
-        _lock.locked { _observers.removeAll() }
+        _lock.locked {
+            _observers.forEach { $0.observer?.finalize() }
+            _observers.removeAll()
+        }
     }
 
     func compact() {

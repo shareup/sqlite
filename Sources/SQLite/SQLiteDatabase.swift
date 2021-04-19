@@ -57,7 +57,7 @@ public final class SQLiteDatabase {
     }
 
     deinit {
-        self.close()
+        try? close()
     }
 
     public func reopen() throws {
@@ -69,14 +69,14 @@ public final class SQLiteDatabase {
         }
     }
 
-    public func close() {
-        sync {
+    public func close() throws {
+        try sync {
             guard _isOpen else { return }
             _monitor.removeAllObservers()
             _cachedStatements.values.forEach { sqlite3_finalize($0) }
             _cachedStatements.removeAll()
             _isOpen = false
-            SQLiteDatabase.close(_connection)
+            try SQLiteDatabase.close(_connection)
         }
     }
 }
@@ -462,6 +462,7 @@ extension SQLiteDatabase {
 
     func removeUpdateHandler() {
         sqlite3_update_hook(_connection, nil, nil)
+        _hook.update = nil
     }
 
     func createCommitHandler(_ block: @escaping () -> Void) {
@@ -472,6 +473,7 @@ extension SQLiteDatabase {
 
     func removeCommitHandler() {
         sqlite3_commit_hook(_connection, nil, nil)
+        _hook.commit = nil
     }
 
     func createRollbackHandler(_ block: @escaping () -> Void) {
@@ -482,13 +484,14 @@ extension SQLiteDatabase {
 
     func removeRollbackHandler() {
         sqlite3_rollback_hook(_connection, nil, nil)
+        _hook.rollback = nil
     }
 
     func notify(observers: Array<Observer>) {
         _queue.async {
             observers.forEach { (observer) in
-                defer { observer.statement.reset() }
-                guard let (_, output) = try? observer.statement.evaluate() else { return }
+                defer { observer.statement?.reset() }
+                guard let (_, output) = try? observer.statement?.evaluate() else { return }
                 observer.queue.async { observer.block(output) }
             }
         }
@@ -619,7 +622,7 @@ extension SQLiteDatabase {
         var result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
 
         guard SQLITE_OK == result else {
-            SQLiteDatabase.close(optionalConnection)
+            try SQLiteDatabase.close(optionalConnection)
             let error = SQLiteError.onOpen(result, path)
             throw error
         }
@@ -635,15 +638,9 @@ extension SQLiteDatabase {
         return connection
     }
 
-    private class func close(_ connection: OpaquePointer?) {
+    private class func close(_ connection: OpaquePointer?) throws {
         guard let connection = connection else { return }
-        let result = sqlite3_close_v2(connection)
-        if result != SQLITE_OK {
-            // We don't actually throw here, because `sqlite3_close_v2()` will
-            // clean up the SQLite database connection when the transactions that
-            // were preventing the close are finalized.
-            // https://sqlite.org/c3ref/close.html
-            return
-        }
+        let result = sqlite3_close(connection)
+        guard result == SQLITE_OK else { throw SQLiteError.onClose(result) }
     }
 }
