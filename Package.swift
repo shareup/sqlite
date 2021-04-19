@@ -20,7 +20,7 @@ let package = Package(
         .package(
             name: "CombineExtensions",
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "2.5.0"
+            from: "2.9.0"
         )
     ],
     targets: [
