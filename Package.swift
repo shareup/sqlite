@@ -17,11 +17,6 @@ let package = Package(
             url: "https://github.com/shareup/combine-extensions.git",
             from: "2.9.0"
         ),
-//        .package(
-//            name: "DispatchTimer",
-//            url: "https://github.com/shareup/dispatch-timer.git",
-//            from: "1.3.0"
-//        ),
         .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
@@ -32,7 +27,6 @@ let package = Package(
         .target(
             name: "SQLite",
             dependencies: [
-//                .product(name: "DispatchTimerDynamic", package: "DispatchTimer"),
                 .product(name: "SynchronizedDynamic", package: "Synchronized"),
             ]),
         .testTarget(
