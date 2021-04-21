@@ -22,49 +22,83 @@ public final class SQLiteDatabase {
         }
     }
 
+    public var path: String { _path }
+    internal var sqliteConnection: OpaquePointer { sync { _connection } }
+
     public var hasOpenTransactions: Bool { return _transactionCount != 0 }
     private var _transactionCount = 0
 
-    private let _connection: OpaquePointer
+    private var _connection: OpaquePointer
     private let _path: String
     private var _isOpen: Bool
 
-    private lazy var _queue: DispatchQueue = {
-        let queue = DispatchQueue(
-            label: "app.shareup.sqlite.sqlitedatabase.queue",
-            qos: .default,
-            attributes: [],
-            autoreleaseFrequency: .workItem,
-            target: .global()
-        )
-        queue.setSpecific(key: self._queueKey, value: self._queueContext)
-        return queue
-    }()
-    private let _queueKey = DispatchSpecificKey<Int>()
-    private lazy var _queueContext: Int = unsafeBitCast(self, to: Int.self)
-
     private var _cachedStatements = Dictionary<String, SQLiteStatement>()
-    private lazy var _monitor: Monitor = { return Monitor(database: self) }()
+    private var _changePublisher: SQLiteDatabaseChangePublisher!
     private let _hook = Hook()
+
+    public static func makeShared(
+        path: String,
+        busyTimeout seconds: TimeInterval = 0
+    ) throws -> SQLiteDatabase {
+        guard path != ":memory:", let url = URL(string: path)
+        else { throw SQLiteError.onInvalidPath(path) }
+
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        var database: SQLiteDatabase? = nil
+        var fileCoordinatorError: NSError? = nil
+        var databaseError: Error? = nil
+
+        coordinator.coordinate(
+            writingItemAt: url,
+            options: .forMerging,
+            error: &fileCoordinatorError
+        ) { url in
+            do {
+                database = try SQLiteDatabase(path: url.path)
+            } catch {
+                databaseError = error
+            }
+        }
+
+        guard let db = database, fileCoordinatorError == nil, databaseError == nil else {
+            let error = String(describing: fileCoordinatorError ?? databaseError)
+            throw SQLiteError.onOpenSharedDatabase(path, error)
+        }
+
+        sqlite3_busy_timeout(db.sqliteConnection, Int32(seconds * 1000))
+
+        return db
+    }
 
     public init(path: String = ":memory:") throws {
         _connection = try SQLiteDatabase.open(at: path)
         _isOpen = true
         _path = path
+        _changePublisher = SQLiteDatabaseChangePublisher(database: self)
     }
 
     deinit {
-        self.close()
+        try? close()
     }
 
-    public func close() {
-        sync {
+    public func reopen() throws {
+        try sync {
+            guard !_isOpen else { return }
+            _connection = try SQLiteDatabase.open(at: _path)
+            _isOpen = true
+            _changePublisher.open()
+        }
+    }
+
+    public func close() throws {
+        try sync {
             guard _isOpen else { return }
-            _monitor.removeAllObservers()
+            _changePublisher.close()
             _cachedStatements.values.forEach { sqlite3_finalize($0) }
             _cachedStatements.removeAll()
             _isOpen = false
-            SQLiteDatabase.close(_connection)
+            try SQLiteDatabase.close(_connection)
         }
     }
 }
@@ -76,8 +110,8 @@ extension SQLiteDatabase {
     public func inTransactionPublisher<T>(
         _ block: @escaping (SQLiteDatabase) throws -> T
     ) -> AnyPublisher<T, SQLiteError> {
-        SQLiteFuture { [_queue] (promise) in
-            _queue.async { [weak self] in
+        SQLiteFuture { (promise) in
+            SQLiteQueue.async { [weak self] in
                 guard let self = self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
@@ -181,9 +215,9 @@ extension SQLiteDatabase {
         }
     }
 
-    public func write(_ sql: SQL, arguments: SQLiteArguments) throws {
+    public func write(_ sql: SQL, arguments: SQLiteArguments = [:]) throws {
         try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
             let statement = try self.cachedStatement(for: sql)
             defer { statement.resetAndClearBindings() }
@@ -195,9 +229,9 @@ extension SQLiteDatabase {
         }
     }
 
-    public func read(_ sql: SQL, arguments: SQLiteArguments) throws -> Array<SQLiteRow> {
+    public func read(_ sql: SQL, arguments: SQLiteArguments = [:]) throws -> Array<SQLiteRow> {
         return try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return [] }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
             let statement = try self.cachedStatement(for: sql)
             defer { statement.resetAndClearBindings() }
             return try _execute(sql, statement: statement, arguments: arguments)
@@ -206,7 +240,7 @@ extension SQLiteDatabase {
 
     public func read<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments
+        arguments: SQLiteArguments = [:]
     ) throws -> Array<T> {
         return try sync {
             let rows: Array<SQLiteRow> = try read(sql, arguments: arguments)
@@ -217,7 +251,7 @@ extension SQLiteDatabase {
     @discardableResult
     public func execute(raw sql: SQL) throws -> Array<SQLiteRow> {
         return try sync {
-            guard _isOpen else { assertionFailure("Database is closed"); return [] }
+            guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
             let statement = try prepare(sql)
             defer { sqlite3_finalize(statement) }
@@ -267,10 +301,17 @@ extension SQLiteDatabase {
 extension SQLiteDatabase {
     public func publisher(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main
-    ) -> AnyPublisher<Array<SQLiteRow>, Swift.Error> {
-        return SQLitePublisher(database: self, sql: sql, arguments: arguments, queue: queue)
+        arguments: SQLiteArguments = [:]
+    ) -> AnyPublisher<Array<SQLiteRow>, SQLiteError> {
+        guard canSubscribeToDatabase else {
+            return Fail(
+                outputType: Array<SQLiteRow>.self,
+                failure: SQLiteError.onSubscribeWithoutColumnMetadata
+            ).eraseToAnyPublisher()
+        }
+
+        return _changePublisher
+            .results(sql: sql, arguments: arguments, database: self)
             .eraseToAnyPublisher()
     }
 
@@ -282,80 +323,35 @@ extension SQLiteDatabase {
     public func publisher<T: SQLiteTransformable>(
         _ type: T.Type,
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main
-    ) -> AnyPublisher<Array<T>, Swift.Error> {
-        return publisher(sql, arguments: arguments, queue: queue) as AnyPublisher<Array<T>, Swift.Error>
+        arguments: SQLiteArguments = [:]
+    ) -> AnyPublisher<Array<T>, SQLiteError> {
+        return publisher(sql, arguments: arguments) as AnyPublisher<Array<T>, SQLiteError>
     }
 
     public func publisher<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main
-    ) -> AnyPublisher<Array<T>, Swift.Error> {
-        return SQLitePublisher(database: self, sql: sql, arguments: arguments, queue: queue)
+        arguments: SQLiteArguments = [:]
+    ) -> AnyPublisher<Array<T>, SQLiteError> {
+        guard canSubscribeToDatabase else {
+            return Fail(
+                outputType: Array<T>.self,
+                failure: SQLiteError.onSubscribeWithoutColumnMetadata
+            ).eraseToAnyPublisher()
+        }
+
+        return _changePublisher
+            .results(sql: sql, arguments: arguments, database: self)
             .tryMap { try $0.map { try T.init(row: $0) } }
-            .eraseToAnyPublisher()
-    }
-}
-
-// MARK: -
-// MARK: Block-based observation of SQL queries
-
-extension SQLiteDatabase {
-    func observe(
-        _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main,
-        block: @escaping (Array<SQLiteRow>) -> Void
-    ) throws -> AnyObject {
-        return try sync {
-            let (observer, output) = try _observe(
-                sql,
-                arguments: arguments,
-                queue: queue,
-                block: block
-            )
-            queue.async { block(output) }
-            return observer
-        }
+            .mapError { (error: Swift.Error) -> SQLiteError in
+                if let sqliteError = error as? SQLiteError {
+                    return sqliteError
+                } else {
+                    return SQLiteError.onDecodingRow(String(describing: error))
+                }
+            }.eraseToAnyPublisher()
     }
 
-    func observe<T: SQLiteTransformable>(
-        _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main,
-        block: @escaping (Array<T>) -> Void
-    ) throws -> AnyObject {
-        return try sync {
-            let updateBlock: (Array<SQLiteRow>) -> Void = { (rows: Array<SQLiteRow>) -> Void in
-                let transformed = rows.compactMap { try? T.init(row: $0) }
-                block(transformed)
-            }
-            let (observer, output) = try _observe(
-                sql,
-                arguments: arguments,
-                queue: queue,
-                block: updateBlock
-            )
-
-            var transformed: Array<T> = []
-            do {
-                transformed = try output.map { try T.init(row: $0) }
-                queue.async { block(transformed) }
-                return observer
-            } catch {
-                _monitor.remove(observer: observer)
-                throw error
-            }
-        }
-    }
-
-    func remove(observer: AnyObject) throws {
-        sync { _monitor.remove(observer: observer) }
-    }
-
-    private var canObserveDatabase: Bool {
+    private var canSubscribeToDatabase: Bool {
         return sync { sqlite3_compileoption_used("SQLITE_ENABLE_COLUMN_METADATA") == Int32(1) }
     }
 }
@@ -365,7 +361,7 @@ extension SQLiteDatabase {
 
 extension SQLiteDatabase: Equatable {
     public static func == (lhs: SQLiteDatabase, rhs: SQLiteDatabase) -> Bool {
-        return lhs._connection == rhs._connection
+        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
     }
 }
 
@@ -438,7 +434,10 @@ extension SQLiteDatabase {
 
 extension SQLiteDatabase {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
+        precondition(SQLiteQueue.isCurrentQueue)
+
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
+            precondition(SQLiteQueue.isCurrentQueue)
             guard let tableName = tableName else { return }
             block(String(cString: tableName))
         }
@@ -449,70 +448,40 @@ extension SQLiteDatabase {
     }
 
     func removeUpdateHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_update_hook(_connection, nil, nil)
+        _hook.update = nil
     }
 
     func createCommitHandler(_ block: @escaping () -> Void) {
+        precondition(SQLiteQueue.isCurrentQueue)
         _hook.commit = block
         let hookAsContext = Unmanaged.passUnretained(_hook).toOpaque()
         sqlite3_commit_hook(_connection, commitHookWrapper, hookAsContext)
     }
 
     func removeCommitHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_commit_hook(_connection, nil, nil)
+        _hook.commit = nil
     }
 
     func createRollbackHandler(_ block: @escaping () -> Void) {
+        precondition(SQLiteQueue.isCurrentQueue)
         _hook.rollback = block
         let hookAsContext = Unmanaged.passUnretained(_hook).toOpaque()
         sqlite3_rollback_hook(_connection, rollbackHookWrapper, hookAsContext)
     }
 
     func removeRollbackHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_rollback_hook(_connection, nil, nil)
-    }
-
-    func notify(observers: Array<Observer>) {
-        _queue.async {
-            observers.forEach { (observer) in
-                defer { observer.statement.reset() }
-                guard let (_, output) = try? observer.statement.evaluate() else { return }
-                observer.queue.async { observer.block(output) }
-            }
-        }
+        _hook.rollback = nil
     }
 }
 
 // MARK: -
 // MARK: Private
-
-extension SQLiteDatabase {
-    private func _observe(
-        _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        queue: DispatchQueue = .main,
-        block: @escaping (Array<SQLiteRow>) -> Void
-    ) throws -> (AnyObject, Array<SQLiteRow>) {
-        assert(isOnDatabaseQueue)
-        guard self.canObserveDatabase else { throw SQLiteError.onObserveWithoutColumnMetadata }
-        let statement = try prepare(sql)
-        try statement.bind(arguments: arguments)
-        let observer = try _monitor.observe(statement: statement, queue: queue, block: block)
-
-        defer { statement.reset() }
-
-        do {
-            let (result, output) = try statement.evaluate()
-            if result != SQLITE_DONE && result != SQLITE_INTERRUPT {
-                throw SQLiteError.onStep(result, sql)
-            }
-            return (observer, output)
-        } catch {
-            _monitor.remove(observer: observer)
-            throw error
-        }
-    }
-}
 
 extension SQLiteDatabase {
     private func _executeAsync(
@@ -521,8 +490,8 @@ extension SQLiteDatabase {
         prepareStatement: @escaping () throws -> OpaquePointer,
         resetStatement: @escaping (OpaquePointer) -> Void
     ) -> SQLiteFuture<[SQLiteRow]> {
-        SQLiteFuture { [_queue] (promise) in
-            _queue.async { [weak self] in
+        SQLiteFuture { (promise) in
+            SQLiteQueue.async { [weak self] in
                 guard let self = self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
@@ -552,8 +521,8 @@ extension SQLiteDatabase {
         statement: OpaquePointer,
         arguments: SQLiteArguments
     ) throws -> [SQLiteRow] {
-        assert(isOnDatabaseQueue)
-        guard _isOpen else { throw SQLiteError.onExecuteQueryWithoutOpenDatabase }
+        precondition(SQLiteQueue.isCurrentQueue)
+        guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
         try statement.bind(arguments: arguments)
         let (result, output) = try statement.evaluate()
@@ -566,6 +535,7 @@ extension SQLiteDatabase {
     }
 
     private func cachedStatement(for sql: SQL) throws -> OpaquePointer {
+        precondition(SQLiteQueue.isCurrentQueue)
         if let cached = _cachedStatements[sql] {
             return cached
         } else {
@@ -576,62 +546,43 @@ extension SQLiteDatabase {
     }
 
     private func prepare(_ sql: SQL) throws -> SQLiteStatement {
-        var optionalStatement: SQLiteStatement?
-        let result = sqlite3_prepare_v2(_connection, sql, -1, &optionalStatement, nil)
-        guard SQLITE_OK == result, let statement = optionalStatement else {
-            sqlite3_finalize(optionalStatement)
-            throw SQLiteError.onPrepareStatement(result, sql)
-        }
-        return statement
+        precondition(SQLiteQueue.isCurrentQueue)
+        return try SQLiteStatement.prepare(sql, in: self)
     }
 }
 
 extension SQLiteDatabase {
-    private var isOnDatabaseQueue: Bool {
-        return DispatchQueue.getSpecific(key: _queueKey) == _queueContext
-    }
-
     private func sync<T>(_ block: () throws -> T) rethrows -> T {
-        if isOnDatabaseQueue {
-            return try block()
-        } else {
-            return try _queue.sync(execute: block)
-        }
+        try SQLiteQueue.sync(block)
     }
 }
 
 extension SQLiteDatabase {
     private class func open(at path: String) throws -> OpaquePointer {
         var optionalConnection: OpaquePointer?
-        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
-        let result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
+        let flags = SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
+        var result = sqlite3_open_v2(path, &optionalConnection, flags, nil)
 
         guard SQLITE_OK == result else {
-            SQLiteDatabase.close(optionalConnection)
+            try SQLiteDatabase.close(optionalConnection)
             let error = SQLiteError.onOpen(result, path)
-            assertionFailure(error.description)
             throw error
         }
 
         guard let connection = optionalConnection else {
             let error = SQLiteError.onOpen(SQLITE_INTERNAL, path)
-            assertionFailure(error.description)
             throw error
         }
+
+        result = sqlite3_exec(connection, "PRAGMA journal_mode=WAL;", nil, nil, nil)
+        guard result == SQLITE_OK else { throw SQLiteError.onEnableWAL(result) }
 
         return connection
     }
 
-    private class func close(_ connection: OpaquePointer?) {
+    private class func close(_ connection: OpaquePointer?) throws {
         guard let connection = connection else { return }
-        let result = sqlite3_close_v2(connection)
-        if result != SQLITE_OK {
-            // We don't actually throw here, because the `sqlite3_close_v2()` will
-            // clean up the SQLite database connection when the transactions that
-            // were preventing the close are finalized.
-            // https://sqlite.org/c3ref/close.html
-            let error = SQLiteError.onClose(result)
-            assertionFailure(error.description)
-        }
+        let result = sqlite3_close(connection)
+        guard result == SQLITE_OK else { throw SQLiteError.onClose(result) }
     }
 }

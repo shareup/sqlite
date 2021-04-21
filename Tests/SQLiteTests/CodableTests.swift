@@ -4,15 +4,15 @@ import XCTest
 class CodableTests: XCTestCase {
     var database: SQLiteDatabase!
 
-    override func setUp() {
-        super.setUp()
-        database = try! SQLiteDatabase()
-        try! database.execute(raw: CodableType.createTable)
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        database = try SQLiteDatabase()
+        try database.execute(raw: CodableType.createTable)
     }
 
-    override func tearDown() {
-        super.tearDown()
-        database.close()
+    override func tearDownWithError() throws {
+        try super.tearDownWithError()
+        try database.close()
     }
 
     func testEncodingWithoutNils() throws {
@@ -142,17 +142,6 @@ class CodableTests: XCTestCase {
 
         XCTAssertEqual(toDecode, decoded)
     }
-
-    static var allTests = [
-        ("testEncodingWithoutNils", testEncodingWithoutNils),
-        ("testEncodingWithNils", testEncodingWithNils),
-        ("testEncodingMultiple", testEncodingMultiple),
-        ("testUpsertSingle", testUpsertSingle),
-        ("testUpsertMultiple", testUpsertMultiple),
-        ("testDecodingWithoutNils", testDecodingWithoutNils),
-        ("testDecodingWithNils", testDecodingWithNils),
-        ("testDecodingMultiple", testDecodingMultiple),
-    ]
 }
 
 extension CodableTests {

@@ -13,15 +13,15 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            name: "CombineExtensions",
+            url: "https://github.com/shareup/combine-extensions.git",
+            from: "2.9.0"
+        ),
+        .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
             from: "2.3.0"
         ),
-        .package(
-            name: "CombineExtensions",
-            url: "https://github.com/shareup/combine-extensions.git",
-            from: "2.5.0"
-        )
     ],
     targets: [
         .target(
@@ -34,7 +34,6 @@ let package = Package(
             dependencies: [
                 .product(name: "CombineTestExtensions", package: "CombineExtensions"),
                 "SQLite",
-            ]
-        ),
+            ]),
     ]
 )

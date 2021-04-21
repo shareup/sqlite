@@ -2,6 +2,27 @@ import Foundation
 import SQLite3
 
 extension SQLiteStatement {
+    static func prepare(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
+        var optionalStatement: SQLiteStatement?
+        let result = sqlite3_prepare_v2(database.sqliteConnection, sql, -1, &optionalStatement, nil)
+        guard SQLITE_OK == result, let statement = optionalStatement else {
+            sqlite3_finalize(optionalStatement)
+            throw SQLiteError.onPrepareStatement(result, sql)
+        }
+        return statement
+    }
+
+    static func preparePersistent(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
+        var optionalStatement: SQLiteStatement?
+        let flag = UInt32(SQLITE_PREPARE_PERSISTENT)
+        let result = sqlite3_prepare_v3(database.sqliteConnection, sql, -1, flag, &optionalStatement, nil)
+        guard SQLITE_OK == result, let statement = optionalStatement else {
+            sqlite3_finalize(optionalStatement)
+            throw SQLiteError.onPrepareStatement(result, sql)
+        }
+        return statement
+    }
+
     func bind(arguments: SQLiteArguments) throws {
         for (key, value) in arguments {
             let name = ":\(key)"
@@ -88,12 +109,19 @@ extension SQLiteStatement {
         }
     }
 
+    func referencedTables(in database: SQLiteDatabase) throws -> Set<String> {
+        guard let sql = sqlite3_sql(self) else { throw SQLiteError.onGetSQL }
+        let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
+        let queryPlan = try database.execute(raw: explain)
+        return QueryPlanParser.tables(in: queryPlan, matching: try database.tables())
+    }
+
     func reset() {
-        sqlite3_reset(self)
+        let _ = sqlite3_reset(self)
     }
 
     func resetAndClearBindings() {
-        sqlite3_reset(self)
-        sqlite3_clear_bindings(self)
+        let _ = sqlite3_reset(self)
+        let _ = sqlite3_clear_bindings(self)
     }
 }

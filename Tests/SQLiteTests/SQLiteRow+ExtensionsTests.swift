@@ -257,23 +257,6 @@ class SQLiteRowExtensionsTests: XCTestCase {
             XCTAssertEqual(expectedValue, try values.value(for: TestCodingKey(stringValue: key)!))
         }
     }
-
-    static var allTests = [
-        ("testBoolValueForKey", testBoolValueForKey),
-        ("testDataValueForKey", testDataValueForKey),
-        ("testDateValueForKey", testDateValueForKey),
-        ("testDoubleValueForKey", testDoubleValueForKey),
-        ("testIntValueForKey", testIntValueForKey),
-        ("testInt64ValueForKey", testInt64ValueForKey),
-        ("testStringValueForKey", testStringValueForKey),
-        ("testOptionalBoolValueForKey", testOptionalBoolValueForKey),
-        ("testOptionalDataValueForKey", testOptionalDataValueForKey),
-        ("testOptionalDateValueForKey", testOptionalDateValueForKey),
-        ("testOptionalDoubleValueForKey", testOptionalDoubleValueForKey),
-        ("testOptionalIntValueForKey", testOptionalIntValueForKey),
-        ("testOptionalInt64ValueForKey", testOptionalInt64ValueForKey),
-        ("testOptionalStringValueForKey", testOptionalStringValueForKey),
-    ]
 }
 
 private struct TestCodingKey: CodingKey {
