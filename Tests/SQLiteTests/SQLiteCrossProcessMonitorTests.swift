@@ -16,7 +16,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
 
             try executeInDifferentProcess(sql: insert1, databasePath: dbPath)
 
-            wait(for: [ex], timeout: 2)
+            wait(for: [ex], timeout: 4) // Coordinated writes are very slow
         }
     }
     #endif
@@ -59,7 +59,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             )
 
             wait(for: [outputEx], timeout: 2)
-            wait(for: [duplicateEx], timeout: 2) // Coordinated writes are very slow.
+            wait(for: [duplicateEx], timeout: 4) // Coordinated writes are very slow.
         }
     }
 }

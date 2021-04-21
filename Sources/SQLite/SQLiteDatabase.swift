@@ -23,7 +23,7 @@ public final class SQLiteDatabase {
     }
 
     public var path: String { _path }
-    internal var connection: OpaquePointer { sync { _connection } }
+    internal var sqliteConnection: OpaquePointer { sync { _connection } }
 
     public var hasOpenTransactions: Bool { return _transactionCount != 0 }
     private var _transactionCount = 0
@@ -31,20 +31,6 @@ public final class SQLiteDatabase {
     private var _connection: OpaquePointer
     private let _path: String
     private var _isOpen: Bool
-
-    private lazy var _queue: DispatchQueue = {
-        let queue = DispatchQueue(
-            label: "app.shareup.sqlite.sqlitedatabase",
-            qos: .default,
-            attributes: [],
-            autoreleaseFrequency: .workItem,
-            target: .global()
-        )
-        queue.setSpecific(key: self._queueKey, value: self._queueContext)
-        return queue
-    }()
-    private let _queueKey = DispatchSpecificKey<Int>()
-    private lazy var _queueContext: Int = unsafeBitCast(self, to: Int.self)
 
     private var _cachedStatements = Dictionary<String, SQLiteStatement>()
     private var _changePublisher: SQLiteDatabaseChangePublisher!
@@ -89,8 +75,8 @@ extension SQLiteDatabase {
     public func inTransactionPublisher<T>(
         _ block: @escaping (SQLiteDatabase) throws -> T
     ) -> AnyPublisher<T, SQLiteError> {
-        SQLiteFuture { [_queue] (promise) in
-            _queue.async { [weak self] in
+        SQLiteFuture { (promise) in
+            SQLiteQueue.async { [weak self] in
                 guard let self = self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
@@ -413,41 +399,49 @@ extension SQLiteDatabase {
 
 extension SQLiteDatabase {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
+        precondition(SQLiteQueue.isCurrentQueue)
+
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
+            precondition(SQLiteQueue.isCurrentQueue)
             guard let tableName = tableName else { return }
             block(String(cString: tableName))
         }
 
-        sync { _hook.update = updateBlock }
+        _hook.update = updateBlock
         let hookAsContext = Unmanaged.passUnretained(_hook).toOpaque()
         sqlite3_update_hook(_connection, updateHookWrapper, hookAsContext)
     }
 
     func removeUpdateHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_update_hook(_connection, nil, nil)
-        sync { _hook.update = nil }
+        _hook.update = nil
     }
 
     func createCommitHandler(_ block: @escaping () -> Void) {
-        sync { _hook.commit = block }
+        precondition(SQLiteQueue.isCurrentQueue)
+        _hook.commit = block
         let hookAsContext = Unmanaged.passUnretained(_hook).toOpaque()
         sqlite3_commit_hook(_connection, commitHookWrapper, hookAsContext)
     }
 
     func removeCommitHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_commit_hook(_connection, nil, nil)
-        sync { _hook.commit = nil }
+        _hook.commit = nil
     }
 
     func createRollbackHandler(_ block: @escaping () -> Void) {
-        sync { _hook.rollback = block }
+        precondition(SQLiteQueue.isCurrentQueue)
+        _hook.rollback = block
         let hookAsContext = Unmanaged.passUnretained(_hook).toOpaque()
         sqlite3_rollback_hook(_connection, rollbackHookWrapper, hookAsContext)
     }
 
     func removeRollbackHandler() {
+        precondition(SQLiteQueue.isCurrentQueue)
         sqlite3_rollback_hook(_connection, nil, nil)
-        sync { _hook.rollback = nil }
+        _hook.rollback = nil
     }
 }
 
@@ -461,8 +455,8 @@ extension SQLiteDatabase {
         prepareStatement: @escaping () throws -> OpaquePointer,
         resetStatement: @escaping (OpaquePointer) -> Void
     ) -> SQLiteFuture<[SQLiteRow]> {
-        SQLiteFuture { [_queue] (promise) in
-            _queue.async { [weak self] in
+        SQLiteFuture { (promise) in
+            SQLiteQueue.async { [weak self] in
                 guard let self = self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
@@ -492,7 +486,7 @@ extension SQLiteDatabase {
         statement: OpaquePointer,
         arguments: SQLiteArguments
     ) throws -> [SQLiteRow] {
-        assert(isOnDatabaseQueue)
+        precondition(SQLiteQueue.isCurrentQueue)
         guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
         try statement.bind(arguments: arguments)
@@ -506,6 +500,7 @@ extension SQLiteDatabase {
     }
 
     private func cachedStatement(for sql: SQL) throws -> OpaquePointer {
+        precondition(SQLiteQueue.isCurrentQueue)
         if let cached = _cachedStatements[sql] {
             return cached
         } else {
@@ -516,27 +511,14 @@ extension SQLiteDatabase {
     }
 
     private func prepare(_ sql: SQL) throws -> SQLiteStatement {
-        var optionalStatement: SQLiteStatement?
-        let result = sqlite3_prepare_v2(_connection, sql, -1, &optionalStatement, nil)
-        guard SQLITE_OK == result, let statement = optionalStatement else {
-            sqlite3_finalize(optionalStatement)
-            throw SQLiteError.onPrepareStatement(result, sql)
-        }
-        return statement
+        precondition(SQLiteQueue.isCurrentQueue)
+        return try SQLiteStatement.prepare(sql, in: self)
     }
 }
 
 extension SQLiteDatabase {
-    private var isOnDatabaseQueue: Bool {
-        return DispatchQueue.getSpecific(key: _queueKey) == _queueContext
-    }
-
     private func sync<T>(_ block: () throws -> T) rethrows -> T {
-        if isOnDatabaseQueue {
-            return try block()
-        } else {
-            return try _queue.sync(execute: block)
-        }
+        try SQLiteQueue.sync(block)
     }
 }
 

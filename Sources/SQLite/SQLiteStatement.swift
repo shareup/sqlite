@@ -2,6 +2,27 @@ import Foundation
 import SQLite3
 
 extension SQLiteStatement {
+    static func prepare(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
+        var optionalStatement: SQLiteStatement?
+        let result = sqlite3_prepare_v2(database.sqliteConnection, sql, -1, &optionalStatement, nil)
+        guard SQLITE_OK == result, let statement = optionalStatement else {
+            sqlite3_finalize(optionalStatement)
+            throw SQLiteError.onPrepareStatement(result, sql)
+        }
+        return statement
+    }
+
+    static func preparePersistent(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
+        var optionalStatement: SQLiteStatement?
+        let flag = UInt32(SQLITE_PREPARE_PERSISTENT)
+        let result = sqlite3_prepare_v3(database.sqliteConnection, sql, -1, flag, &optionalStatement, nil)
+        guard SQLITE_OK == result, let statement = optionalStatement else {
+            sqlite3_finalize(optionalStatement)
+            throw SQLiteError.onPrepareStatement(result, sql)
+        }
+        return statement
+    }
+
     func bind(arguments: SQLiteArguments) throws {
         for (key, value) in arguments {
             let name = ":\(key)"

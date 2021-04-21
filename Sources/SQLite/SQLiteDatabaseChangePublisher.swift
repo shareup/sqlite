@@ -15,8 +15,12 @@ final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
 
     private let id = UUID().uuidString
     private weak var database: SQLiteDatabase?
+
+    private let downstreamSubject = PassthroughSubject<Output, Never>()
+
     private let changeTrackerURL: URL?
-    private let subject = PassthroughSubject<Output, Never>()
+    private let changeTrackerSubject = PassthroughSubject<Void, Never>()
+    private var changeTrackerSubscription: AnyCancellable?
 
     private var updatedTables = Set<String>()
     private let queue: OperationQueue
@@ -33,67 +37,68 @@ final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
 
         createHooks()
         registerFilePresenter()
+        subscribeToChangeTracker()
     }
 
     deinit {
+        changeTrackerSubscription = nil
         removeHooks()
     }
 
     func open() {
-        subject.send(.open)
+        precondition(SQLiteQueue.isCurrentQueue)
+        downstreamSubject.send(.open)
         createHooks()
         registerFilePresenter()
     }
 
     func close() {
+        precondition(SQLiteQueue.isCurrentQueue)
         removeHooks()
         removeFilePresenter()
-        subject.send(.close)
+        downstreamSubject.send(.close)
     }
 
     func receive<S: Subscriber>(
         subscriber: S
     ) where Failure == S.Failure, Output == S.Input {
-        subject.receive(subscriber: subscriber)
+        downstreamSubject.receive(subscriber: subscriber)
     }
 }
 
 private extension SQLiteDatabaseChangePublisher {
     func createHooks() {
-        guard let database = database else { return }
+        guard let database = self.database else { return }
 
-        database.createUpdateHandler { [weak self] (table) in
-            guard let self = self else { return }
-            self.updatedTables.insert(table)
-        }
+        SQLiteQueue.sync {
+            database.createUpdateHandler { [weak self] (table) in
+                guard let self = self else { return }
+                self.updatedTables.insert(table)
+            }
+            
+            database.createCommitHandler { [weak self] in
+                guard let self = self else { return }
+                let tables = self.updatedTables
+                self.updatedTables.removeAll()
+                self.notifyDownstreamSubscribersAsync(.updateTables(tables))
+                self.notifyOtherProcesses()
+            }
 
-        database.createCommitHandler { [weak self] in
-            guard let self = self else { return }
-            let tables = self.updatedTables
-            self.updatedTables.removeAll()
-            self.notifySubject(tables: tables)
-            self.notifyOtherProcesses()
-        }
-
-        database.createRollbackHandler { [weak self] in
-            guard let self = self else { return }
-            self.updatedTables.removeAll()
+            database.createRollbackHandler { [weak self] in
+                guard let self = self else { return }
+                self.updatedTables.removeAll()
+            }
         }
     }
 
     func removeHooks() {
-        guard let database = database else { return }
-        database.removeUpdateHandler()
-        database.removeCommitHandler()
-        database.removeRollbackHandler()
-    }
+        guard let database = self.database else { return }
 
-    private func notifySubject(tables: Set<String>) {
-        let operation = BlockOperation { [weak self] in
-            self?.subject.send(.updateTables(tables))
+        SQLiteQueue.sync {
+            database.removeUpdateHandler()
+            database.removeCommitHandler()
+            database.removeRollbackHandler()
         }
-        operation.queuePriority = .veryHigh
-        queue.addOperation(operation)
     }
 }
 
@@ -102,7 +107,7 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
     var presentedItemOperationQueue: OperationQueue { queue }
 
     func presentedItemDidChange() {
-        subject.send(.crossProcessUpdate)
+        notifyDownstreamSubscribersAsync(.crossProcessUpdate)
     }
 
     private func registerFilePresenter() {
@@ -115,21 +120,39 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
         NSFileCoordinator.removeFilePresenter(self)
     }
 
-    private func notifyOtherProcesses() {
-        let operation = BlockOperation { [weak self] in
-            guard let self = self else { return }
-            guard let url = self.changeTrackerURL else { return }
-
-            let coordinator = NSFileCoordinator(filePresenter: self)
-            coordinator.coordinate(
-                writingItemAt: url,
-                options: .forReplacing,
-                error: nil,
-                byAccessor: self.touch
+    private func subscribeToChangeTracker() {
+        let sub = changeTrackerSubject
+            .throttle(
+                for: .seconds(1),
+                scheduler: queue,
+                latest: true
             )
-        }
-        operation.queuePriority = .low
-        queue.addOperation(operation)
+            .sink { [weak self] in
+                guard let self = self else { return }
+                guard let url = self.changeTrackerURL else { return }
+
+                let coordinator = NSFileCoordinator(filePresenter: self)
+                coordinator.coordinate(
+                    writingItemAt: url,
+                    options: .forReplacing,
+                    error: nil,
+                    byAccessor: self.touch
+                )
+            }
+        self.changeTrackerSubscription = sub
+    }
+
+    private func notifyOtherProcesses() {
+        self.changeTrackerSubject.send(())
+    }
+
+    private func notifyDownstreamSubscribersAsync(_ value: Output) {
+        // When this callback is called, we could still be in the middle of a
+        // database transaction because the commit handler gets called in
+        // the middle of one. So, we can't notify the downstream
+        // publishers because they'll do a SQL query, which will make
+        // SQLite throw an exception.
+        SQLiteQueue.async { [weak self] in self?.downstreamSubject.send(value) }
     }
 
     private var touch: (URL?) -> Void {

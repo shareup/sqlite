@@ -270,13 +270,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
     }
 
     private func prepareAndBindStatement(database: SQLiteDatabase) throws -> SQLiteStatement {
-        var optionalStatement: SQLiteStatement?
-        let flag = UInt32(SQLITE_PREPARE_PERSISTENT)
-        let result = sqlite3_prepare_v3(database.connection, sql, -1, flag, &optionalStatement, nil)
-        guard SQLITE_OK == result, let statement = optionalStatement else {
-            sqlite3_finalize(optionalStatement)
-            throw SQLiteError.onPrepareStatement(result, sql)
-        }
+        let statement = try SQLiteStatement.preparePersistent(sql, in: database)
         try statement.bind(arguments: arguments)
         return statement
     }
@@ -292,12 +286,22 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                 break
 
             case let .subscribedToChanges(_, statement, _):
-                guard let result = try? statement.evaluate()
-                else { return statement.reset() }
-                statement.reset()
+                // Using a standard `defer { statement.reset() ` can cause a
+                // crash if `subscriber.receive(result)` results in the publisher
+                // being cancelled because cancelling the publisher calls
+                // `state.cancel()`, which finalizes the statement, which will
+                // then cause the app to crash when `statement.reset()` is called.
+                // So, we need to make sure the reset happens as soon as the statement
+                // is evaluated.
+                let result: Array<SQLiteRow>
+                do {
+                    defer { statement.reset() }
+                    guard let r = try? statement.evaluate() else { return }
+                    result = r.1
+                }
 
                 demand -= .max(1)
-                let newDemand = subscriber.receive(result.1)
+                let newDemand = subscriber.receive(result)
                 guard newDemand != .none else { return }
                 demand += newDemand
             }
