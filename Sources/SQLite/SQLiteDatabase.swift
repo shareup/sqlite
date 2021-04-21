@@ -36,7 +36,10 @@ public final class SQLiteDatabase {
     private var _changePublisher: SQLiteDatabaseChangePublisher!
     private let _hook = Hook()
 
-    public static func makeShared(path: String) throws -> SQLiteDatabase {
+    public static func makeShared(
+        path: String,
+        busyTimeout seconds: TimeInterval = 0
+    ) throws -> SQLiteDatabase {
         guard path != ":memory:", let url = URL(string: path)
         else { throw SQLiteError.onInvalidPath(path) }
 
@@ -62,6 +65,8 @@ public final class SQLiteDatabase {
             let error = String(describing: fileCoordinatorError ?? databaseError)
             throw SQLiteError.onOpenSharedDatabase(path, error)
         }
+
+        sqlite3_busy_timeout(db.sqliteConnection, Int32(seconds * 1000))
 
         return db
     }
