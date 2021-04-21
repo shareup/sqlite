@@ -4,6 +4,8 @@ import SQLite3
 public enum SQLiteError: Error, Equatable {
     case databaseIsClosed
     case onInternalError(String)
+    case onInvalidPath(String)
+    case onOpenSharedDatabase(String, String)
     case onOpen(Int32, String)
     case onEnableWAL(Int32)
     case onClose(Int32)
@@ -33,6 +35,10 @@ extension SQLiteError {
         case .databaseIsClosed:
             return nil
         case .onInternalError:
+            return nil
+        case .onInvalidPath:
+            return nil
+        case .onOpenSharedDatabase:
             return nil
         case let .onOpen(code, _):
             return code
@@ -96,6 +102,10 @@ extension SQLiteError: CustomStringConvertible {
             return "Database is closed"
         case .onInternalError(let error):
             return "Internal error: '\(error)'"
+        case .onInvalidPath(let path):
+            return "Invalid path: '\(path)'"
+        case .onOpenSharedDatabase(let path, let error):
+            return "Could not open shared database at '\(path)': \(error)"
         case .onOpen(let code, let path):
             return "Could not open database at '\(path)': \(string(for: code))"
         case let .onEnableWAL(code):

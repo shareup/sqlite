@@ -36,6 +36,36 @@ public final class SQLiteDatabase {
     private var _changePublisher: SQLiteDatabaseChangePublisher!
     private let _hook = Hook()
 
+    public static func makeShared(path: String) throws -> SQLiteDatabase {
+        guard path != ":memory:", let url = URL(string: path)
+        else { throw SQLiteError.onInvalidPath(path) }
+
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        var database: SQLiteDatabase? = nil
+        var fileCoordinatorError: NSError? = nil
+        var databaseError: Error? = nil
+
+        coordinator.coordinate(
+            writingItemAt: url,
+            options: .forMerging,
+            error: &fileCoordinatorError
+        ) { url in
+            do {
+                database = try SQLiteDatabase(path: url.path)
+            } catch {
+                databaseError = error
+            }
+        }
+
+        guard let db = database, fileCoordinatorError == nil, databaseError == nil else {
+            let error = String(describing: fileCoordinatorError ?? databaseError)
+            throw SQLiteError.onOpenSharedDatabase(path, error)
+        }
+
+        return db
+    }
+
     public init(path: String = ":memory:") throws {
         _connection = try SQLiteDatabase.open(at: path)
         _isOpen = true

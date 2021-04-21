@@ -3,25 +3,55 @@ import CombineTestExtensions
 @testable import SQLite
 
 class SQLiteCrossProcessMonitorTests: XCTestCase {
-    #if os(macOS)
-    func testIsNotifiedOfChangeFromDifferentProcess() throws {
-        try Sandbox.execute { (directory) in
-            let dbPath = directory.appendingPathComponent("test.db").path
-            let db = try SQLiteDatabase(path: dbPath)
-            try db.write(createTable)
-
-            let ex = db
-                .publisher(Test.self, getAll)
-                .expectOutput([[], [Test(1, "one")]])
-
-            try executeInDifferentProcess(sql: insert1, databasePath: dbPath)
-
-            wait(for: [ex], timeout: 4) // Coordinated writes are very slow
+    func testCanNotOpenASharedInMemoryDatabase() throws {
+        XCTAssertThrowsError(
+            try SQLiteDatabase.makeShared(path: ":memory:"),
+            "Shared in-memory databases can't be created"
+        ) { (error) in
+            guard case let .onInvalidPath(path) = (error as! SQLiteError)
+            else { return XCTFail() }
+            XCTAssertEqual(":memory:", path)
         }
     }
-    #endif
 
-    func testIsNotNotifiedOfChangeFromSameProcess() throws {
+    func testCanCreateSharedDatabase() throws {
+        try Sandbox.execute { (directory) in
+            let dbPath = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase.makeShared(path: dbPath)
+            try db.write(createTable)
+            XCTAssertEqual(["test"], try db.tables())
+        }
+    }
+
+    func testIsNotifiedOfChangeFromDifferentConnection() throws {
+        try Sandbox.execute { (directory) in
+            let dbPath = directory.appendingPathComponent("test.db").path
+
+            let db1 = try SQLiteDatabase.makeShared(path: dbPath)
+            let db2 = try SQLiteDatabase.makeShared(path: dbPath)
+
+            try db1.write(createTable)
+
+            let ex1 = db1
+                .publisher(Test.self, getAll)
+                .removeDuplicates()
+                .expectOutput([[], [Test(1, "one")]])
+
+            let ex2 = db2
+                .publisher(Test.self, getAll)
+                .removeDuplicates()
+                .expectOutput([[], [Test(1, "one")]])
+
+            try db2.write(
+                "INSERT INTO test VALUES (:id, :text);",
+                arguments: ["id": .integer(1), "text": .text("one")]
+            )
+
+            wait(for: [ex1, ex2], timeout: 4) // Coordinated writes can be very slow
+        }
+    }
+
+    func testIsNotNotifiedOfChangeFromSameConnection() throws {
         try Sandbox.execute { (directory) in
             let dbPath = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: dbPath)
@@ -59,33 +89,9 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             )
 
             wait(for: [outputEx], timeout: 2)
-            wait(for: [duplicateEx], timeout: 2) // Coordinated writes are very slow.
+            wait(for: [duplicateEx], timeout: 2) // Coordinated writes can be very slow
         }
     }
-}
-
-private extension SQLiteCrossProcessMonitorTests {
-    #if os(macOS)
-    func executeInDifferentProcess(sql: SQL, databasePath: String) throws {
-        let sqlite3 = URL(fileURLWithPath: "/usr/bin/sqlite3")
-
-        var terminationStatus: Int32 = -1
-
-        let coordinator = NSFileCoordinator()
-        coordinator.coordinate(
-            writingItemAt: URL(fileURLWithPath: databasePath + "-change-tracker"),
-            options: .forReplacing,
-            error: nil
-        ) { (url) in
-            let process = try! Process.run(sqlite3, arguments: [databasePath, sql])
-            process.waitUntilExit()
-            terminationStatus = process.terminationStatus
-            try! UUID().uuidString.write(to: url, atomically: true, encoding: .utf8)
-        }
-
-        guard terminationStatus == 0 else { throw Err.sqlite3CommandFailed }
-    }
-    #endif
 }
 
 private enum Err: Error {
