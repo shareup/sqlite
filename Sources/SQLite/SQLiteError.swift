@@ -22,7 +22,7 @@ public enum SQLiteError: Error, Equatable {
     case onDecodingRow(String)
     case onInvalidDecodingType(String)
     case onInvalidSelectStatementColumnCount
-    case onObserveWithoutColumnMetadata
+    case onSubscribeWithoutColumnMetadata
     case onSubscribeWithoutDatabase
     case onTryToObserveZeroTables
 }
@@ -70,7 +70,7 @@ extension SQLiteError {
             return nil
         case .onInvalidSelectStatementColumnCount:
             return nil
-        case .onObserveWithoutColumnMetadata:
+        case .onSubscribeWithoutColumnMetadata:
             return nil
         case .onSubscribeWithoutDatabase:
             return nil
@@ -132,8 +132,8 @@ extension SQLiteError: CustomStringConvertible {
             return "Could not decode value of type '\(typeDescription)'"
         case .onInvalidSelectStatementColumnCount:
             return "A SELECT statement must contain at least one result column"
-        case .onObserveWithoutColumnMetadata:
-            return "Could not observe database because SQLite was not compiled with SQLITE_ENABLE_COLUMN_METADATA"
+        case .onSubscribeWithoutColumnMetadata:
+            return "Could not subscribe to database because SQLite was not compiled with SQLITE_ENABLE_COLUMN_METADATA"
         case .onSubscribeWithoutDatabase:
             return "Could not subscribe because the SQLite database has been deallocated"
         case .onTryToObserveZeroTables:

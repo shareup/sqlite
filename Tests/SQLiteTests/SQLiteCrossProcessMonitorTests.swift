@@ -3,6 +3,7 @@ import CombineTestExtensions
 @testable import SQLite
 
 class SQLiteCrossProcessMonitorTests: XCTestCase {
+    #if os(macOS)
     func testIsNotifiedOfChangeFromDifferentProcess() throws {
         try Sandbox.execute { (directory) in
             let dbPath = directory.appendingPathComponent("test.db").path
@@ -18,6 +19,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             wait(for: [ex], timeout: 2)
         }
     }
+    #endif
 
     func testIsNotNotifiedOfChangeFromSameProcess() throws {
         try Sandbox.execute { (directory) in
@@ -60,14 +62,10 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             wait(for: [duplicateEx], timeout: 2) // Coordinated writes are very slow.
         }
     }
-
-    static var allTests = [
-        ("testIsNotifiedOfChangeFromDifferentProcess", testIsNotifiedOfChangeFromDifferentProcess),
-        ("testIsNotNotifiedOfChangeFromSameProcess", testIsNotNotifiedOfChangeFromSameProcess),
-    ]
 }
 
 private extension SQLiteCrossProcessMonitorTests {
+    #if os(macOS)
     func executeInDifferentProcess(sql: SQL, databasePath: String) throws {
         let sqlite3 = URL(fileURLWithPath: "/usr/bin/sqlite3")
 
@@ -75,7 +73,7 @@ private extension SQLiteCrossProcessMonitorTests {
 
         let coordinator = NSFileCoordinator()
         coordinator.coordinate(
-            writingItemAt: URL(fileURLWithPath: databasePath + "-monitor"),
+            writingItemAt: URL(fileURLWithPath: databasePath + "-change-tracker"),
             options: .forReplacing,
             error: nil
         ) { (url) in
@@ -87,6 +85,7 @@ private extension SQLiteCrossProcessMonitorTests {
 
         guard terminationStatus == 0 else { throw Err.sqlite3CommandFailed }
     }
+    #endif
 }
 
 private enum Err: Error {

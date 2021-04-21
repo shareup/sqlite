@@ -13,20 +13,26 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            name: "CombineExtensions",
+            url: "https://github.com/shareup/combine-extensions.git",
+            from: "2.9.0"
+        ),
+//        .package(
+//            name: "DispatchTimer",
+//            url: "https://github.com/shareup/dispatch-timer.git",
+//            from: "1.3.0"
+//        ),
+        .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
             from: "2.3.0"
         ),
-        .package(
-            name: "CombineExtensions",
-            url: "https://github.com/shareup/combine-extensions.git",
-            from: "2.9.0"
-        )
     ],
     targets: [
         .target(
             name: "SQLite",
             dependencies: [
+//                .product(name: "DispatchTimerDynamic", package: "DispatchTimer"),
                 .product(name: "SynchronizedDynamic", package: "Synchronized"),
             ]),
         .testTarget(
@@ -34,7 +40,6 @@ let package = Package(
             dependencies: [
                 .product(name: "CombineTestExtensions", package: "CombineExtensions"),
                 "SQLite",
-            ]
-        ),
+            ]),
     ]
 )

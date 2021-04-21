@@ -40,13 +40,6 @@ class PreciseDateFormatterTests: XCTestCase {
             XCTAssertEqual(model, decoded)
         }
     }
-
-    static var allTests = [
-        ("testCurrentDateSerializesAndDeserializes", testCurrentDateSerializesAndDeserializes),
-        ("testUnixTimestampSerializesAndDeserializes", testUnixTimestampSerializesAndDeserializes),
-        ("testISO8601DateSerializesAndDeserializes", testISO8601DateSerializesAndDeserializes),
-        ("testEncodingAndDecodingPreciseDate", testEncodingAndDecodingPreciseDate),
-    ]
 }
 
 private struct Model: Codable, Equatable {

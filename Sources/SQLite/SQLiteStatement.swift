@@ -88,12 +88,19 @@ extension SQLiteStatement {
         }
     }
 
+    func referencedTables(in database: SQLiteDatabase) throws -> Set<String> {
+        guard let sql = sqlite3_sql(self) else { throw SQLiteError.onGetSQL }
+        let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
+        let queryPlan = try database.execute(raw: explain)
+        return QueryPlanParser.tables(in: queryPlan, matching: try database.tables())
+    }
+
     func reset() {
-        sqlite3_reset(self)
+        let _ = sqlite3_reset(self)
     }
 
     func resetAndClearBindings() {
-        sqlite3_reset(self)
-        sqlite3_clear_bindings(self)
+        let _ = sqlite3_reset(self)
+        let _ = sqlite3_clear_bindings(self)
     }
 }

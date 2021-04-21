@@ -44,6 +44,16 @@ class SQLiteDatabaseTests: XCTestCase {
         }
     }
 
+    func testCloseErrorWhenDatabaseIsClosed() throws {
+        try database.close()
+        XCTAssertThrowsError(
+            try database.execute(raw: _createTableWithBlob),
+            "Should have thrown database closed error",
+            { XCTAssertEqual(.databaseIsClosed, $0 as? SQLiteError) }
+        )
+        XCTAssertThrowsError(try database.tables())
+    }
+
     func testReopen() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(Data("one".utf8))]
         let two: SQLiteArguments = ["id": .integer(2), "data": .data(Data("two".utf8))]
@@ -578,35 +588,6 @@ class SQLiteDatabaseTests: XCTestCase {
 
         wait(for: [ex], timeout: 2)
     }
-
-    static var allTests = [
-        ("testDatabaseIsCreated", testDatabaseIsCreated),
-        ("testDatabaseConnectionIsOpenedInWALMode", testDatabaseConnectionIsOpenedInWALMode),
-        ("testReopen", testReopen),
-        ("testUserVersion", testUserVersion),
-        ("testSupportsJSON", testSupportsJSON),
-        ("testCreateTable", testCreateTable),
-        ("testTablesAndColumns", testTablesAndColumns),
-        ("testInsertAndFetchBlob", testInsertAndFetchBlob),
-        ("testInsertAndFetchBlobWithPublisher", testInsertAndFetchBlobWithPublisher),
-        ("testInsertAndFetchFloatStringAndData", testInsertAndFetchFloatStringAndData),
-        ("testInsertAndFetchNullableText", testInsertAndFetchNullableText),
-        ("testInsertAndFetchSQLiteTransformable", testInsertAndFetchSQLiteTransformable),
-        ("testInsertAndFetchSQLiteTransformableWithPublisher", testInsertAndFetchSQLiteTransformableWithPublisher),
-        ("testInsertTextIntoTypesafeDataColumnFails", testInsertTextIntoTypesafeDataColumnFails),
-        ("testInsertNilIntoNonNullDataColumnFails", testInsertNilIntoNonNullDataColumnFails),
-        ("testInsertOrReplaceWithSameIDReplacesRows", testInsertOrReplaceWithSameIDReplacesRows),
-        ("testInsertAndFetchValidJSON", testInsertAndFetchValidJSON),
-        ("testInsertInvalidJSON", testInsertInvalidJSON),
-        ("testInsertFloatStringAndDataInTransaction", testInsertFloatStringAndDataInTransaction),
-        ("testReturnValueFromInTransaction", testReturnValueFromInTransaction),
-        ("testReturnValueFromInTransactionWithoutTry", testReturnValueFromInTransactionWithoutTry),
-        ("testInvalidInsertOfBlobInTransactionRollsBack", testInvalidInsertOfBlobInTransactionRollsBack),
-        ("testInvalidInsertOfBlobInTransactionRollsBackWithPublisher", testInvalidInsertOfBlobInTransactionRollsBackWithPublisher),
-        ("testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher", testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher),
-        ("testHasOpenTransactions", testHasOpenTransactions),
-        ("testHasOpenTransactionsWithPublisher", testHasOpenTransactionsWithPublisher),
-    ]
 }
 
 extension SQLiteDatabaseTests {
