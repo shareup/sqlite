@@ -99,6 +99,9 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
     private let arguments: SQLiteArguments
     private weak var database: SQLiteDatabase?
 
+    private var changeKey: Int = 0
+    private var lastPublishedChangeKey: Int = -1
+
     private var state: State = .waitingForSubscription
     private let lock = RecursiveLock()
     private var demand = Subscribers.Demand.none
@@ -197,6 +200,8 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
 
     func receive(_ input: SQLiteDatabaseChange) -> Subscribers.Demand {
         let next: (() -> Void)? = lock.locked {
+            changeKey = changeKey &+ 1
+
             switch state {
             case .waitingForSubscription, .completed:
                 return nil
@@ -280,6 +285,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
             guard demand > .none else { return }
             guard let subscriber = self.subscriber else { return }
             guard let _ = database else { return }
+            guard lastPublishedChangeKey != changeKey else { return }
 
             switch state {
             case .waitingForSubscription, .paused, .completed:
@@ -301,6 +307,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                 }
 
                 demand -= .max(1)
+                lastPublishedChangeKey = changeKey
                 let newDemand = subscriber.receive(result)
                 guard newDemand != .none else { return }
                 demand += newDemand
