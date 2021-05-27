@@ -124,9 +124,10 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
         let sub = changeTrackerSubject
             .throttle(
                 for: .seconds(1),
-                scheduler: queue,
+                scheduler: RunLoop.main, // using `queue` breaks tests because it doesn't have a `RunLoop`
                 latest: true
             )
+            .receive(on: queue)
             .sink { [weak self] in
                 guard let self = self else { return }
                 guard let url = self.changeTrackerURL else { return }
