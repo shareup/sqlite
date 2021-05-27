@@ -161,6 +161,41 @@ class SQLitePublisherTests: XCTestCase {
 
         wait(for: [ex], timeout: 0.5)
     }
+
+    func testOnlyPublishesWhenDataHasChanged() throws {
+        let person3 = Person(id: "3", name: "New Human", age: 1, title: "newborn")
+        let pet3 = Pet(name: "Camo the Camel", ownerID: person3.id, type: "camel", registrationID: "3")
+        let petOwner3 = PetOwner(
+            id: person3.id, name: person3.name, age: person3.age, title: person3.title, pet: pet3
+        )
+
+        let expected: Array<Array<PetOwner>> = [
+            [_petOwner1, _petOwner2],
+            [_petOwner1, _petOwner2, petOwner3], // After insert of pet,
+        ]
+
+        var publishCount = 0
+
+        let ex = database
+            .publisher(PetOwner.self, PetOwner.getAll)
+            .handleEvents(receiveOutput: { _ in publishCount += 1 })
+            .flatMap(maxPublishers: .max(1)) { (petOwners: [PetOwner]) -> AnyPublisher<[PetOwner], SQLiteError> in
+                [petOwners]
+                    .publisher
+                    .setFailureType(to: SQLiteError.self)
+                    .eraseToAnyPublisher()
+            }
+            .expectOutput(expected, failsOnCompletion: true)
+
+        try database.inTransaction { db in
+            try db.write(Person.insert, arguments: person3.asArguments)
+            try db.write(Pet.insert, arguments: pet3.asArguments)
+        }
+
+        wait(for: [ex], timeout: 2)
+
+        XCTAssertEqual(2, publishCount)
+    }
 }
 
 extension SQLitePublisherTests {
