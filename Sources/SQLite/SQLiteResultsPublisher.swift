@@ -8,8 +8,8 @@ extension Publisher where Output == SQLiteDatabaseChange, Failure == Never {
         sql: SQL,
         arguments: SQLiteArguments = [:],
         database: SQLiteDatabase
-    ) -> SQLiteStatementResultsPublisher<Self> {
-        SQLiteStatementResultsPublisher(
+    ) -> SQLiteResultsPublisher<Self> {
+        SQLiteResultsPublisher(
             upstream: self,
             sql: sql,
             arguments: arguments,
@@ -18,7 +18,7 @@ extension Publisher where Output == SQLiteDatabaseChange, Failure == Never {
     }
 }
 
-struct SQLiteStatementResultsPublisher<Upstream: Publisher>: Publisher where
+struct SQLiteResultsPublisher<Upstream: Publisher>: Publisher where
     Upstream.Output == SQLiteDatabaseChange, Upstream.Failure == Never
 {
     typealias Output = [SQLiteRow]

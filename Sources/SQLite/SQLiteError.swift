@@ -89,6 +89,11 @@ extension SQLiteError {
         guard let code = code else { return false }
         return code == SQLITE_BUSY
     }
+
+    public var isClosed: Bool {
+        guard case .databaseIsClosed = self else { return false }
+        return true
+    }
 }
 
 extension SQLiteError: CustomStringConvertible {

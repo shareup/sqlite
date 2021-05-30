@@ -15,7 +15,7 @@ let package = Package(
         .package(
             name: "CombineExtensions",
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "2.9.0"
+            from: "3.1.0"
         ),
         .package(
             name: "Synchronized",
@@ -32,6 +32,7 @@ let package = Package(
         .testTarget(
             name: "SQLiteTests",
             dependencies: [
+                .product(name: "CombineExtensionsDynamic", package: "CombineExtensions"),
                 .product(name: "CombineTestExtensions", package: "CombineExtensions"),
                 "SQLite",
             ]),

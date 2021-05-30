@@ -77,6 +77,8 @@ class SQLiteDatabaseTests: XCTestCase {
             XCTAssertEqual(2, rows.count)
             XCTAssertEqual(one, rows.first)
             XCTAssertEqual(three, rows.last)
+
+            try db.close()
         }
     }
 
