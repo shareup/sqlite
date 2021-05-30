@@ -185,8 +185,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                     state.cancel()
                     return {
                         subscription.cancel()
-                        let errorStr = String(describing: error)
-                        sub.receive(completion: .failure(.onInternalError(errorStr)))
+                        sub.receive(completion: .failure(.onInternalError(error as NSError)))
                     }
                 }
 
@@ -252,9 +251,8 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                     subscriber = nil
                     state.cancel()
                     return {
-                        let err = String(describing: error)
                         subscription.cancel()
-                        sub.receive(completion: .failure(.onInternalError(err)))
+                        sub.receive(completion: .failure(.onInternalError(error as NSError)))
                     }
                 }
             }
