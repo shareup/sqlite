@@ -123,7 +123,7 @@ extension SQLiteDatabase {
                 } catch let error as SQLiteError {
                     promise(.failure(error))
                 } catch {
-                    promise(.failure(.onInternalError(error.localizedDescription)))
+                    promise(.failure(.onInternalError(error as NSError)))
                 }
             }
         }
@@ -153,7 +153,7 @@ extension SQLiteDatabase {
             if let sqliteError = error as? SQLiteError {
                 return sqliteError
             } else {
-                return .onInternalError(error.localizedDescription)
+                return .onInternalError(error as NSError)
             }
         }
         .eraseToAnyPublisher()
@@ -187,7 +187,7 @@ extension SQLiteDatabase {
                 if let sqliteError = error as? SQLiteError {
                     return sqliteError
                 } else {
-                    return .onInternalError(error.localizedDescription)
+                    return .onInternalError(error as NSError)
                 }
             }
             .eraseToAnyPublisher()
@@ -510,7 +510,7 @@ extension SQLiteDatabase {
                 } catch let error as SQLiteError {
                     promise(.failure(error))
                 } catch {
-                    promise(.failure(.onInternalError(error.localizedDescription)))
+                    promise(.failure(.onInternalError(error as NSError)))
                 }
             }
         }

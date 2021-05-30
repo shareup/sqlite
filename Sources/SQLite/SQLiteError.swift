@@ -3,7 +3,7 @@ import SQLite3
 
 public enum SQLiteError: Error, Equatable {
     case databaseIsClosed
-    case onInternalError(String)
+    case onInternalError(NSError)
     case onInvalidPath(String)
     case onOpenSharedDatabase(String, String)
     case onOpen(Int32, String)
@@ -106,7 +106,7 @@ extension SQLiteError: CustomStringConvertible {
         case .databaseIsClosed:
             return "Database is closed"
         case .onInternalError(let error):
-            return "Internal error: '\(error)'"
+            return "Internal error: '\(String(describing: error))'"
         case .onInvalidPath(let path):
             return "Invalid path: '\(path)'"
         case .onOpenSharedDatabase(let path, let error):
