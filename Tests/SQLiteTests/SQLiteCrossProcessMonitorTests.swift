@@ -20,6 +20,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             let db = try SQLiteDatabase.makeShared(path: dbPath)
             try db.write(createTable)
             XCTAssertEqual(["test"], try db.tables())
+            try db.close()
         }
     }
 
@@ -48,6 +49,9 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             )
 
             wait(for: [ex1, ex2], timeout: 4) // Coordinated writes can be very slow
+            
+            try db1.close()
+            try db2.close()
         }
     }
 
@@ -90,6 +94,8 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
 
             wait(for: [outputEx], timeout: 2)
             wait(for: [duplicateEx], timeout: 2) // Coordinated writes can be very slow
+
+            try db.close()
         }
     }
 }

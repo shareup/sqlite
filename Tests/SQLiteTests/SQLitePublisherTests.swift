@@ -1,5 +1,6 @@
 import XCTest
 import Combine
+import CombineExtensions
 import CombineTestExtensions
 @testable import SQLite
 
@@ -55,6 +56,53 @@ class SQLitePublisherTests: XCTestCase {
             try db.write(Person.insert, arguments: _person2.asArguments)
 
             wait(for: [ex], timeout: 2)
+
+            try db.close()
+        }
+    }
+
+    func testRetryingWhenDatabaseIsClosed() throws {
+        let scheduler = DispatchQueue.main
+
+        try Sandbox.execute { (directory) in
+            let path = directory.appendingPathComponent("test.db").path
+
+            let db = try SQLiteDatabase(path: path)
+            try db.execute(raw: Person.createTable)
+            let encoder = SQLiteEncoder(db)
+            try encoder.encode([_person1, _person2], using: Person.insert)
+
+            try db.close()
+
+            let failureEx = expectation(description: "Should have failed twice")
+            failureEx.expectedFulfillmentCount = 2
+            failureEx.assertForOverFulfill = false // Just in case CI machines are slow
+
+            let ex = db
+                .readPublisher(Person.getAll)
+                .retryIf(
+                    { error in
+                        if error.isClosed {
+                            failureEx.fulfill()
+                            return true
+                        } else {
+                            return false
+                        }
+                    },
+                    after: .milliseconds(50),
+                    scheduler: scheduler
+                )
+                .expectOutput(
+                    [_person1, _person2],
+                    expectToFinish: true
+                )
+
+            wait(for: [failureEx], timeout: 2)
+            try db.reopen()
+
+            wait(for: [ex], timeout: 2)
+
+            try db.close()
         }
     }
 

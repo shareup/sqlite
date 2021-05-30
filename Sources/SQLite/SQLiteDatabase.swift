@@ -179,7 +179,7 @@ extension SQLiteDatabase {
 
     public func readPublisher<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments
+        arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[T], SQLiteError> {
         readPublisher(sql, arguments: arguments)
             .tryMap { try $0.map { try T.init(row: $0) } }
@@ -547,6 +547,7 @@ extension SQLiteDatabase {
 
     private func prepare(_ sql: SQL) throws -> SQLiteStatement {
         precondition(SQLiteQueue.isCurrentQueue)
+        guard _isOpen else { throw SQLiteError.databaseIsClosed }
         return try SQLiteStatement.prepare(sql, in: self)
     }
 }
