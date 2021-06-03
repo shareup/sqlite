@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.3
 import PackageDescription
 
 let package = Package(
@@ -15,24 +15,22 @@ let package = Package(
         .package(
             name: "CombineExtensions",
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "3.1.0"
+            from: "4.0.0"
         ),
         .package(
             name: "Synchronized",
             url: "https://github.com/shareup/synchronized.git",
-            from: "2.3.0"
+            from: "3.0.0"
         ),
     ],
     targets: [
         .target(
             name: "SQLite",
-            dependencies: [
-                .product(name: "SynchronizedDynamic", package: "Synchronized"),
-            ]),
+            dependencies: ["Synchronized"]),
         .testTarget(
             name: "SQLiteTests",
             dependencies: [
-                .product(name: "CombineExtensionsDynamic", package: "CombineExtensions"),
+                "CombineExtensions",
                 .product(name: "CombineTestExtensions", package: "CombineExtensions"),
                 "SQLite",
             ]),
