@@ -185,6 +185,20 @@ class SQLitePublisherTests: XCTestCase {
         wait(for: [ex], timeout: 0.5)
     }
 
+    func testDeleteAll() throws {
+        let expected: Array<Array<Person>> = [
+            [_person1, _person2],
+            [],
+        ]
+
+        let ex = database
+            .publisher(Person.self, Person.getAll)
+            .expectOutput(expected)
+
+        try database.execute(raw: "DELETE FROM people;")
+        wait(for: [ex], timeout: 0.5)
+    }
+
     func testInsert() throws {
         let person3 = Person(id: "3", name: "New Human", age: 1, title: "newborn")
         let pet3 = Pet(name: "Camo the Camel", ownerID: person3.id, type: "camel", registrationID: "3")

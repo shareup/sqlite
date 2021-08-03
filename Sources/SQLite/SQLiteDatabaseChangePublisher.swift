@@ -6,6 +6,7 @@ enum SQLiteDatabaseChange {
     case open
     case close
     case updateTables(Set<String>)
+    case updateAllTables
     case crossProcessUpdate
 }
 
@@ -80,7 +81,13 @@ private extension SQLiteDatabaseChangePublisher {
                 guard let self = self else { return }
                 let tables = self.updatedTables
                 self.updatedTables.removeAll()
-                self.notifyDownstreamSubscribersAsync(.updateTables(tables))
+                // Some SQL statements do not trigger the update handler,
+                // which means their affected tables aren't saved. An
+                // example is `DELETE FROM <table>;`. In those cases,
+                // assume every table has been updated.
+                self.notifyDownstreamSubscribersAsync(
+                    tables.isEmpty ? .updateAllTables : .updateTables(tables)
+                )
                 self.notifyOtherProcesses()
             }
 

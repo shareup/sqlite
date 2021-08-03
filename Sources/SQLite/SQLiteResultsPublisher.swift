@@ -221,6 +221,9 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                 case let .updateTables(updatedTables):
                     guard !tables.isDisjoint(with: updatedTables) else { return nil }
                     return { self.publish() }
+
+                case .updateAllTables:
+                    return { self.publish() }
                 }
 
             case let .paused(subscription):
