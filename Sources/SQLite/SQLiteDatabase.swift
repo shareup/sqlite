@@ -32,6 +32,9 @@ public final class SQLiteDatabase {
     private let _path: String
     private var _isOpen: Bool
 
+    internal var sqliteVersion: SQLiteVersion { _sqliteVersion }
+    private var _sqliteVersion: SQLiteVersion!
+
     private var _cachedStatements = Dictionary<String, SQLiteStatement>()
     private var _changePublisher: SQLiteDatabaseChangePublisher!
     private let _hook = Hook()
@@ -75,6 +78,8 @@ public final class SQLiteDatabase {
         _connection = try SQLiteDatabase.open(at: path)
         _isOpen = true
         _path = path
+        _sqliteVersion = try getSQLiteVersion()
+        try checkIsSQLiteVersionSupported()
         _changePublisher = SQLiteDatabaseChangePublisher(database: self)
     }
 
@@ -103,8 +108,7 @@ public final class SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Asynchronous queries
+// MARK: - Asynchronous queries
 
 extension SQLiteDatabase {
     public func inTransactionPublisher<T>(
@@ -194,8 +198,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Synchronous queries
+// MARK: - Synchronous queries
 
 extension SQLiteDatabase {
     public func inTransaction<T>(_ block: (SQLiteDatabase) throws -> T) rethrows -> T {
@@ -261,8 +264,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Tables and columns
+// MARK: - Tables and columns
 
 extension SQLiteDatabase {
     public func tables() throws -> Array<String> {
@@ -295,8 +297,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Combine Publishers observing SQL queries
+// MARK: - Combine Publishers observing SQL queries
 
 extension SQLiteDatabase {
     public func publisher(
@@ -356,8 +357,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Equatable
+// MARK: - Equatable
 
 extension SQLiteDatabase: Equatable {
     public static func == (lhs: SQLiteDatabase, rhs: SQLiteDatabase) -> Bool {
@@ -365,8 +365,7 @@ extension SQLiteDatabase: Equatable {
     }
 }
 
-// MARK: -
-// MARK: Compile-time SQLite options
+// MARK: - Compile-time SQLite options
 
 extension SQLiteDatabase {
     public var supportsJSON: Bool {
@@ -378,8 +377,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Vacuuming
+// MARK: - Vacuuming
 
 extension SQLiteDatabase {
     public enum AutoVacuumMode: Int {
@@ -429,8 +427,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: SQLite hooks
+// MARK: - SQLite hooks
 
 extension SQLiteDatabase {
     func createUpdateHandler(_ block: @escaping (String) -> Void) {
@@ -480,8 +477,7 @@ extension SQLiteDatabase {
     }
 }
 
-// MARK: -
-// MARK: Private
+// MARK: - Private
 
 extension SQLiteDatabase {
     private func _executeAsync(
@@ -555,6 +551,24 @@ extension SQLiteDatabase {
 extension SQLiteDatabase {
     private func sync<T>(_ block: () throws -> T) rethrows -> T {
         try SQLiteQueue.sync(block)
+    }
+}
+
+extension SQLiteDatabase {
+    private func getSQLiteVersion() throws -> SQLiteVersion {
+        return try SQLiteVersion(
+            rows: try execute(raw: SQLiteVersion.selectVersion)
+        )
+    }
+
+    private func checkIsSQLiteVersionSupported() throws {
+        guard _sqliteVersion.isSupported else {
+            throw SQLiteError.onUnsupportedSQLiteVersion(
+                _sqliteVersion.major,
+                _sqliteVersion.minor,
+                _sqliteVersion.patch
+            )
+        }
     }
 }
 
