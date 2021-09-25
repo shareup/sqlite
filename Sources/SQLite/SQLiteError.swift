@@ -8,6 +8,8 @@ public enum SQLiteError: Error, Equatable {
     case onOpenSharedDatabase(String, String)
     case onOpen(Int32, String)
     case onEnableWAL(Int32)
+    case onInvalidSQLiteVersion
+    case onUnsupportedSQLiteVersion(Int, Int, Int)
     case onClose(Int32)
     case onPrepareStatement(Int32, String)
     case onGetParameterIndex(String)
@@ -44,6 +46,10 @@ extension SQLiteError {
             return code
         case let .onEnableWAL(code):
             return code
+        case .onInvalidSQLiteVersion:
+            return nil
+        case .onUnsupportedSQLiteVersion:
+            return nil
         case let .onClose(code):
             return code
         case let .onPrepareStatement(code, _):
@@ -115,6 +121,10 @@ extension SQLiteError: CustomStringConvertible {
             return "Could not open database at '\(path)': \(string(for: code))"
         case let .onEnableWAL(code):
             return "Could not enable WAL mode: \(string(for: code))"
+        case .onInvalidSQLiteVersion:
+            return "Invalid SQLite version"
+        case let .onUnsupportedSQLiteVersion(major, minor, patch):
+            return "Unsupported SQLite version: \(major).\(minor).\(patch)"
         case .onClose(let code):
             return "Could not close database: \(string(for: code))"
         case .onPrepareStatement(let code, let sql):
