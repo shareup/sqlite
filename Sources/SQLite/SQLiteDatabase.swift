@@ -3,25 +3,6 @@ import Combine
 import SQLite3
 
 public final class SQLiteDatabase {
-    public var userVersion: Int {
-        get {
-            do {
-                guard let result = try execute(raw: "PRAGMA user_version;").first else { return 0 }
-                return result["user_version"]?.intValue ?? 0
-            } catch let error {
-                assertionFailure("Could not get user_version: \(error)")
-                return 0
-            }
-        }
-        set {
-            do {
-                try execute(raw: "PRAGMA user_version = \(newValue);")
-            } catch let error {
-                assertionFailure("Could not set user_version to \(newValue): \(error)")
-            }
-        }
-    }
-
     public var path: String { _path }
     internal var sqliteConnection: OpaquePointer { sync { _connection } }
 
@@ -374,6 +355,48 @@ extension SQLiteDatabase {
 
     public func isCompileOptionEnabled(_ name: String) -> Bool {
         return sqlite3_compileoption_used(name) == 1
+    }
+}
+
+// MARK: - Pragmas
+
+extension SQLiteDatabase {
+    public var userVersion: Int {
+        get {
+            do {
+                guard let result = try execute(raw: "PRAGMA user_version;").first else { return 0 }
+                return result["user_version"]?.intValue ?? 0
+            } catch {
+                assertionFailure("Could not get user_version: \(error)")
+                return 0
+            }
+        }
+        set {
+            do {
+                try execute(raw: "PRAGMA user_version = \(newValue);")
+            } catch {
+                assertionFailure("Could not set user_version to \(newValue): \(error)")
+            }
+        }
+    }
+
+    public var isForeignKeySupportEnabled: Bool {
+        get {
+            do {
+                guard let result = try execute(raw: "PRAGMA foreign_keys;").first else { return false }
+                return result["foreign_keys"]?.boolValue ?? false
+            } catch {
+                assertionFailure("Could not get foreign_keys: \(error)")
+                return false
+            }
+        }
+        set {
+            do {
+                try execute(raw: "PRAGMA foreign_keys = \(newValue ? "ON" : "OFF");")
+            } catch {
+                assertionFailure("Could not set foreign_keys to \(newValue): \(error)")
+            }
+        }
     }
 }
 
