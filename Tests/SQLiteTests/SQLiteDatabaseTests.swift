@@ -89,6 +89,13 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(123, database.userVersion)
     }
 
+    func testIsForeignKeySupportEnabled() throws {
+        XCTAssertFalse(database.isForeignKeySupportEnabled)
+
+        database.isForeignKeySupportEnabled = true
+        XCTAssertTrue(database.isForeignKeySupportEnabled)
+    }
+
     func testSupportsJSON() throws {
         XCTAssertTrue(database.supportsJSON)
     }
