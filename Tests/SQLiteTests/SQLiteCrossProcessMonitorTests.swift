@@ -70,7 +70,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             duplicateEx.isInverted = true
 
             let sub = db
-                .publisher(Test.self, getAll)
+                .publisher(Test.self, getAll, tables: ["test"])
                 .sink(
                     receiveCompletion: { _ in  },
                     receiveValue: { rows in

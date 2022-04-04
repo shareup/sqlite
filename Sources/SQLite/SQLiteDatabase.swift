@@ -283,7 +283,8 @@ extension SQLiteDatabase {
 extension SQLiteDatabase {
     public func publisher(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:]
+        arguments: SQLiteArguments = [:],
+        tables: [String] = []
     ) -> AnyPublisher<Array<SQLiteRow>, SQLiteError> {
         guard canSubscribeToDatabase else {
             return Fail(
@@ -293,7 +294,7 @@ extension SQLiteDatabase {
         }
 
         return _changePublisher
-            .results(sql: sql, arguments: arguments, database: self)
+            .results(sql: sql, arguments: arguments, tables: tables, database: self)
             .eraseToAnyPublisher()
     }
 
@@ -305,14 +306,16 @@ extension SQLiteDatabase {
     public func publisher<T: SQLiteTransformable>(
         _ type: T.Type,
         _ sql: SQL,
-        arguments: SQLiteArguments = [:]
+        arguments: SQLiteArguments = [:],
+        tables: [String] = []
     ) -> AnyPublisher<Array<T>, SQLiteError> {
-        return publisher(sql, arguments: arguments) as AnyPublisher<Array<T>, SQLiteError>
+        return publisher(sql, arguments: arguments, tables: tables) as AnyPublisher<Array<T>, SQLiteError>
     }
 
     public func publisher<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:]
+        arguments: SQLiteArguments = [:],
+        tables: [String] = []
     ) -> AnyPublisher<Array<T>, SQLiteError> {
         guard canSubscribeToDatabase else {
             return Fail(
@@ -322,7 +325,7 @@ extension SQLiteDatabase {
         }
 
         return _changePublisher
-            .results(sql: sql, arguments: arguments, database: self)
+            .results(sql: sql, arguments: arguments, tables: tables, database: self)
             .tryMap { try $0.map { try T.init(row: $0) } }
             .mapError { (error: Swift.Error) -> SQLiteError in
                 if let sqliteError = error as? SQLiteError {

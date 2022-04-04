@@ -109,17 +109,6 @@ extension SQLiteStatement {
         }
     }
 
-    func referencedTables(in database: SQLiteDatabase) throws -> Set<String> {
-        guard let sql = sqlite3_sql(self) else { throw SQLiteError.onGetSQL }
-        let explain = "EXPLAIN QUERY PLAN \(String(cString: sql));"
-        let queryPlan = try database.execute(raw: explain)
-        return QueryPlanParser.tables(
-            in: queryPlan,
-            matching: try database.tables(),
-            for: database.sqliteVersion
-        )
-    }
-
     func reset() {
         let _ = sqlite3_reset(self)
     }
