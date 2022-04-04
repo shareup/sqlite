@@ -6,13 +6,15 @@ import Combine
 extension Publisher where Output == SQLiteDatabaseChange, Failure == Never {
     func results(
         sql: SQL,
-        arguments: SQLiteArguments = [:],
+        arguments: SQLiteArguments,
+        tables: [String],
         database: SQLiteDatabase
     ) -> SQLiteResultsPublisher<Self> {
         SQLiteResultsPublisher(
             upstream: self,
             sql: sql,
             arguments: arguments,
+            tables: tables,
             database: database
         )
     }
@@ -27,17 +29,20 @@ struct SQLiteResultsPublisher<Upstream: Publisher>: Publisher where
     private let upstream: Upstream
     private let sql: SQL
     private let arguments: SQLiteArguments
+    private let tables: [String]
     private weak var database: SQLiteDatabase?
 
     init(
         upstream: Upstream,
         sql: SQL,
         arguments: SQLiteArguments = [:],
+        tables: [String] = [],
         database: SQLiteDatabase
     ) {
         self.upstream = upstream
         self.sql = sql
         self.arguments = arguments
+        self.tables = tables
         self.database = database
     }
 
@@ -47,6 +52,7 @@ struct SQLiteResultsPublisher<Upstream: Publisher>: Publisher where
         let subscription = SQLiteStatementResultsSubscription(
             sql: sql,
             arguments: arguments,
+            tables: tables,
             database: database,
             subscriber: subscriber
         )
@@ -97,6 +103,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
     private var subscriber: S?
     private let sql: SQL
     private let arguments: SQLiteArguments
+    private let tables: Set<String>
     private weak var database: SQLiteDatabase?
 
     private var changeKey: Int = 0
@@ -109,13 +116,15 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
     init(
         sql: SQL,
         arguments: SQLiteArguments,
+        tables: [String],
         database: SQLiteDatabase?,
         subscriber: S
     ) {
         self.subscriber = subscriber
         self.sql = sql
-        self.database = database
         self.arguments = arguments
+        self.tables = Set(tables)
+        self.database = database
     }
 
     deinit {
@@ -167,7 +176,6 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
             case .waitingForSubscription:
                 do {
                     let statement = try prepareAndBindStatement(database: db)
-                    let tables = try statement.referencedTables(in: db)
                     state = .subscribedToChanges(subscription, statement, tables)
                     return {
                         subscription.request(.unlimited)
@@ -219,7 +227,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                     return { self.publish() }
 
                 case let .updateTables(updatedTables):
-                    guard !tables.isDisjoint(with: updatedTables) else { return nil }
+                    guard tables.isEmpty || !tables.isDisjoint(with: updatedTables) else { return nil }
                     return { self.publish() }
 
                 case .updateAllTables:
@@ -240,7 +248,6 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
 
                 do {
                     let statement = try prepareAndBindStatement(database: db)
-                    let tables = try statement.referencedTables(in: db)
                     state = .subscribedToChanges(subscription, statement, tables)
                     return { self.publish() }
                 } catch let sqliteError as SQLiteError {
