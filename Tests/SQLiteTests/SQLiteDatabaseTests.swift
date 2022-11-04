@@ -1,24 +1,24 @@
-import XCTest
-import SQLite3
 import Combine
 import CombineTestExtensions
 @testable import SQLite
+import SQLite3
+import XCTest
 
-class SQLiteDatabaseTests: XCTestCase {
+final class SQLiteDatabaseTests: XCTestCase {
     var database: SQLiteDatabase!
-    
+
     override func setUp() {
         super.setUp()
         database = try! SQLiteDatabase()
     }
-    
+
     override func tearDownWithError() throws {
         try super.tearDownWithError()
         try database.close()
     }
 
     func testDatabaseIsCreated() throws {
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
             XCTAssertTrue(FileManager().fileExists(atPath: path))
@@ -30,7 +30,7 @@ class SQLiteDatabaseTests: XCTestCase {
         let fileManager = FileManager.default
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(Data("one".utf8))]
 
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
 
@@ -59,7 +59,7 @@ class SQLiteDatabaseTests: XCTestCase {
         let two: SQLiteArguments = ["id": .integer(2), "data": .data(Data("two".utf8))]
         let three: SQLiteArguments = ["id": .integer(3), "data": .data(Data("three".utf8))]
 
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
 
@@ -127,10 +127,10 @@ class SQLiteDatabaseTests: XCTestCase {
 
         try database.execute(raw: _createTableWithBlob)
 
-        try database.inTransaction { (db) -> Void in
-            try (0..<1000).forEach { (index) in
+        try database.inTransaction { db in
+            try (0 ..< 1000).forEach { index in
                 let args: SQLiteArguments = [
-                    "id": .integer(Int64(index)), "data": .data(_textData)
+                    "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
                 try db.write(_insertIDAndData, arguments: args)
             }
@@ -156,10 +156,10 @@ class SQLiteDatabaseTests: XCTestCase {
 
         try database.execute(raw: _createTableWithBlob)
 
-        try database.inTransaction { (db) -> Void in
-            try (0..<1000).forEach { (index) in
+        try database.inTransaction { db in
+            try (0 ..< 1000).forEach { index in
                 let args: SQLiteArguments = [
-                    "id": .integer(Int64(index)), "data": .data(_textData)
+                    "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
                 try db.write(_insertIDAndData, arguments: args)
             }
@@ -185,10 +185,10 @@ class SQLiteDatabaseTests: XCTestCase {
 
         try database.execute(raw: _createTableWithBlob)
 
-        try database.inTransaction { (db) -> Void in
-            try (0..<1000).forEach { (index) in
+        try database.inTransaction { db in
+            try (0 ..< 1000).forEach { index in
                 let args: SQLiteArguments = [
-                    "id": .integer(Int64(index)), "data": .data(_textData)
+                    "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
                 try db.write(_insertIDAndData, arguments: args)
             }
@@ -234,8 +234,11 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
 
-        var fetched: Array<SQLiteRow> = []
-        XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .integer(123)]))
+        var fetched: [SQLiteRow] = []
+        XCTAssertNoThrow(
+            fetched = try database
+                .read(_selectWhereID, arguments: ["id": .integer(123)])
+        )
         XCTAssertEqual(1, fetched.count)
         XCTAssertEqual(one, fetched[0])
     }
@@ -243,7 +246,7 @@ class SQLiteDatabaseTests: XCTestCase {
     func testInsertAndFetchBlobWithPublisher() throws {
         let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
 
-        let ex = database.inTransactionPublisher { (db) -> Array<SQLiteRow> in
+        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
             try db.execute(raw: self._createTableWithBlob)
             try db.write(self._insertIDAndData, arguments: one)
             return try db.read(self._selectWhereID, arguments: ["id": .integer(123)])
@@ -255,16 +258,26 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testInsertAndFetchFloatStringAndData() throws {
         let one: SQLiteArguments =
-            ["id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)]
+            [
+                "id": .integer(1),
+                "float": .double(1.23),
+                "string": .text("123"),
+                "data": .data(_textData),
+            ]
         let two: SQLiteArguments =
-            ["id": .integer(2), "float": .double(4.56), "string": .text("456"), "data": .data(_textData)]
+            [
+                "id": .integer(2),
+                "float": .double(4.56),
+                "string": .text("456"),
+                "data": .data(_textData),
+            ]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
         XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: one))
         XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: two))
 
         for (id, target) in [1: one, 2: two] {
-            var fetched: Array<SQLiteRow> = []
+            var fetched: [SQLiteRow] = []
             XCTAssertNoThrow(
                 fetched = try database.read(
                     _selectWhereID,
@@ -285,8 +298,11 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.write(_insertIDAndString, arguments: two))
 
         for (id, target) in ["not null": one, "null": two] {
-            var fetched: Array<SQLiteRow> = []
-            XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .text(id)]))
+            var fetched: [SQLiteRow] = []
+            XCTAssertNoThrow(
+                fetched = try database
+                    .read(_selectWhereID, arguments: ["id": .text(id)])
+            )
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
         }
@@ -301,14 +317,14 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.write(Transformable.insert, arguments: two.asArguments))
 
         for (name, target) in ["two": two, "three": nil, "one": one] {
-            var fetched: Array<Transformable> = []
+            var fetched: [Transformable] = []
             XCTAssertNoThrow(
                 fetched = try database.read(
                     Transformable.fetchByName,
                     arguments: ["name": .text(name)]
                 )
             )
-            if let target = target {
+            if let target {
                 XCTAssertEqual(1, fetched.count)
                 XCTAssertEqual(target, fetched[0])
             } else {
@@ -321,7 +337,7 @@ class SQLiteDatabaseTests: XCTestCase {
         let one = Transformable(name: "one", age: 1, jobTitle: "boss")
         let two = Transformable(name: "two", age: 2)
 
-        let ex = database.inTransactionPublisher { (db) -> [Transformable] in
+        let ex = database.inTransactionPublisher { db -> [Transformable] in
             try db.execute(raw: Transformable.createTable)
             try db.write(Transformable.insert, arguments: one.asArguments)
             try db.write(Transformable.insert, arguments: two.asArguments)
@@ -344,8 +360,8 @@ class SQLiteDatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithTypesafeBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
-        XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: two)) { (error) in
-            if case SQLiteError.onStep(let code, _) = error {
+        XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: two)) { error in
+            if case let SQLiteError.onStep(code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
                 XCTFail("'\(error)' should be 'Error.onStep'")
@@ -357,8 +373,8 @@ class SQLiteDatabaseTests: XCTestCase {
         let one: SQLiteArguments = ["id": .integer(123), "data": .null]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
-        XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: one)) { (error) in
-            if case SQLiteError.onStep(let code, _) = error {
+        XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: one)) { error in
+            if case let SQLiteError.onStep(code, _) = error {
                 XCTAssertEqual(SQLITE_CONSTRAINT, code)
             } else {
                 XCTFail("'\(error)' should be 'Error.onStep'")
@@ -381,8 +397,11 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.write(_insertOrReplaceIDAndString, arguments: twoUpdated))
 
         for (id, target) in ["1": oneUpdated, "2": twoUpdated] {
-            var fetched: Array<SQLiteRow> = []
-            XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .text(id)]))
+            var fetched: [SQLiteRow] = []
+            XCTAssertNoThrow(
+                fetched = try database
+                    .read(_selectWhereID, arguments: ["id": .text(id)])
+            )
             XCTAssertEqual(1, fetched.count)
             XCTAssertEqual(target, fetched[0])
         }
@@ -392,22 +411,23 @@ class SQLiteDatabaseTests: XCTestCase {
         guard database.supportsJSON else { return XCTFail() }
 
         let json = """
-            {
-                "text": "This is some text",
-                "number": 1234.03,
-                "array": [
-                    true,
-                    false
-                ],
-                "object": {
-                    "inner": null
-                }
+        {
+            "text": "This is some text",
+            "number": 1234.03,
+            "array": [
+                true,
+                false
+            ],
+            "object": {
+                "inner": null
             }
-            """
+        }
+        """
 
         do {
             let write: SQL = "INSERT INTO test VALUES (:id, json(:string));"
-            let read: SQL = "SELECT json_extract(string, '$.text') AS text FROM test WHERE id=:id;"
+            let read: SQL =
+                "SELECT json_extract(string, '$.text') AS text FROM test WHERE id=:id;"
 
             try database.execute(raw: _createTableWithIDAsStringAndNullableString)
             try database.write(write, arguments: ["id": .text("1"), "string": .text(json)])
@@ -432,15 +452,40 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testInsertFloatStringAndDataInTransaction() throws {
         let one: SQLiteArguments =
-            ["id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)]
+            [
+                "id": .integer(1),
+                "float": .double(1.23),
+                "string": .text("123"),
+                "data": .data(_textData),
+            ]
         let two: SQLiteArguments =
-            ["id": .integer(2), "float": .double(4.56), "string": .text("456"), "data": .data(_textData)]
+            [
+                "id": .integer(2),
+                "float": .double(4.56),
+                "string": .text("456"),
+                "data": .data(_textData),
+            ]
         let three: SQLiteArguments =
-            ["id": .integer(3), "float": .double(7.89), "string": .text("789"), "data": .data(_textData)]
+            [
+                "id": .integer(3),
+                "float": .double(7.89),
+                "string": .text("789"),
+                "data": .data(_textData),
+            ]
         let four: SQLiteArguments =
-            ["id": .integer(4), "float": .double(0.12), "string": .text("012"), "data": .data(_textData)]
+            [
+                "id": .integer(4),
+                "float": .double(0.12),
+                "string": .text("012"),
+                "data": .data(_textData),
+            ]
         let five: SQLiteArguments =
-            ["id": .integer(5), "float": .double(3.45), "string": .text("345"), "data": .data(_textData)]
+            [
+                "id": .integer(5),
+                "float": .double(3.45),
+                "string": .text("345"),
+                "data": .data(_textData),
+            ]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
 
@@ -453,7 +498,7 @@ class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.inTransaction(block))
 
         for (id, target) in [1: one, 2: two, 3: three, 4: four, 5: five] {
-            var fetched: Array<SQLiteRow> = []
+            var fetched: [SQLiteRow] = []
             XCTAssertNoThrow(
                 fetched = try database.read(
                     _selectWhereID,
@@ -467,14 +512,15 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testReturnValueFromInTransaction() throws {
         let one: SQLiteArguments = [
-            "id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)
+            "id": .integer(1), "float": .double(1.23), "string": .text("123"),
+            "data": .data(_textData),
         ]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
         XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: one))
 
         let row = try database.inTransaction { db in
-            return try db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
+            try db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
         }
 
         XCTAssertEqual(row, one)
@@ -482,14 +528,15 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testReturnValueFromInTransactionWithoutTry() throws {
         let one: SQLiteArguments = [
-            "id": .integer(1), "float": .double(1.23), "string": .text("123"), "data": .data(_textData)
+            "id": .integer(1), "float": .double(1.23), "string": .text("123"),
+            "data": .data(_textData),
         ]
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
         XCTAssertNoThrow(try database.write(_insertIDFloatStringAndData, arguments: one))
 
         let row = database.inTransaction { db in
-            return try? db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
+            try? db.read(_selectWhereID, arguments: ["id": .integer(1)]).first
         }
 
         XCTAssertEqual(row, one)
@@ -505,8 +552,11 @@ class SQLiteDatabaseTests: XCTestCase {
         let block = { try ($0 as SQLiteDatabase).write(self._insertIDAndData, arguments: two) }
         XCTAssertThrowsError(try database.inTransaction(block))
 
-        var fetched: Array<SQLiteRow> = []
-        XCTAssertNoThrow(fetched = try database.read(_selectWhereID, arguments: ["id": .integer(1)]))
+        var fetched: [SQLiteRow] = []
+        XCTAssertNoThrow(
+            fetched = try database
+                .read(_selectWhereID, arguments: ["id": .integer(1)])
+        )
         XCTAssertEqual(1, fetched.count)
         XCTAssertEqual(one, fetched[0])
     }
@@ -515,7 +565,7 @@ class SQLiteDatabaseTests: XCTestCase {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
 
-        let ex = database.inTransactionPublisher { (db) -> [SQLiteRow] in
+        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
             try db.execute(raw: self._createTableWithBlob)
             try db.write(self._insertIDAndData, arguments: one)
             try db.write(self._insertIDAndData, arguments: two) // throws
@@ -532,10 +582,10 @@ class SQLiteDatabaseTests: XCTestCase {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
 
-        try database.execute(raw: self._createTableWithBlob)
-        try database.write(self._insertIDAndData, arguments: one)
+        try database.execute(raw: _createTableWithBlob)
+        try database.write(_insertIDAndData, arguments: one)
 
-        let ex = database.inTransactionPublisher { (db) -> [SQLiteRow] in
+        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
             try db.write(self._insertIDAndData, arguments: two) // throws
             return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
         }
@@ -543,12 +593,12 @@ class SQLiteDatabaseTests: XCTestCase {
 
         wait(for: [ex], timeout: 2)
 
-        XCTAssertEqual([one], try database.read(self._selectWhereID, arguments: ["id": .integer(1)]))
+        XCTAssertEqual([one], try database.read(_selectWhereID, arguments: ["id": .integer(1)]))
     }
 
     func testHasOpenTransactions() throws {
         func arguments(with id: Int) -> SQLiteArguments {
-            return ["id": .integer(Int64(id)), "data": .data(_textData)]
+            ["id": .integer(Int64(id)), "data": .data(_textData)]
         }
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
@@ -573,14 +623,14 @@ class SQLiteDatabaseTests: XCTestCase {
 
     func testHasOpenTransactionsWithPublisher() throws {
         func arguments(with id: Int) -> SQLiteArguments {
-            return ["id": .integer(Int64(id)), "data": .data(_textData)]
+            ["id": .integer(Int64(id)), "data": .data(_textData)]
         }
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
 
         XCTAssertFalse(database.hasOpenTransactions)
 
-        let ex = database.inTransactionPublisher { (db) -> Array<SQLiteRow> in
+        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
             XCTAssertTrue(db.hasOpenTransactions)
 
             try db.write(self._insertIDAndData, arguments: arguments(with: 1))
@@ -599,9 +649,9 @@ class SQLiteDatabaseTests: XCTestCase {
     }
 }
 
-extension SQLiteDatabaseTests {
-    fileprivate var _createTableWithBlob: String {
-        return """
+private extension SQLiteDatabaseTests {
+    var _createTableWithBlob: String {
+        """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY NOT NULL,
             data BLOB NOT NULL
@@ -609,8 +659,8 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _createTableWithTypesafeBlob: String {
-        return """
+    var _createTableWithTypesafeBlob: String {
+        """
         CREATE TABLE test (
             id INTEGER NOT NULL PRIMARY KEY,
             data BLOB CHECK(typeof(data) = 'blob')
@@ -618,12 +668,12 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _insertIDAndData: String {
-        return "INSERT INTO test VALUES (:id, :data);"
+    var _insertIDAndData: String {
+        "INSERT INTO test VALUES (:id, :data);"
     }
 
-    fileprivate var _createTableForTestingUniqueColumns: String {
-        return """
+    var _createTableForTestingUniqueColumns: String {
+        """
         CREATE TABLE test (
             id1 INTEGER PRIMARY KEY NOT NULL,
             uniqueText TEXT NOT NULL UNIQUE,
@@ -633,8 +683,8 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _createTableWithTwoPrimaryKeysForTestingUniqueColumns: String {
-        return """
+    var _createTableWithTwoPrimaryKeysForTestingUniqueColumns: String {
+        """
         CREATE TABLE test (
             id1 INTEGER,
             id2 INTEGER,
@@ -646,12 +696,12 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _createUniqueIndexDoubleIndex: String {
-        return "CREATE UNIQUE INDEX test_unique_index_double_index ON test (uniqueIndexDouble);"
+    var _createUniqueIndexDoubleIndex: String {
+        "CREATE UNIQUE INDEX test_unique_index_double_index ON test (uniqueIndexDouble);"
     }
 
-    fileprivate var _createTableWithFloatStringData: String {
-        return """
+    var _createTableWithFloatStringData: String {
+        """
         CREATE TABLE test (
             id INTEGER PRIMARY KEY NOT NULL,
             float DOUBLE NOT NULL,
@@ -661,12 +711,12 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _insertIDFloatStringAndData: String {
-        return "INSERT INTO test VALUES (:id, :float, :string, :data);"
+    var _insertIDFloatStringAndData: String {
+        "INSERT INTO test VALUES (:id, :float, :string, :data);"
     }
 
-    fileprivate var _createTableWithIDAsStringAndNullableString: String {
-        return """
+    var _createTableWithIDAsStringAndNullableString: String {
+        """
         CREATE TABLE test (
             id TEXT PRIMARY KEY NOT NULL,
             string TEXT
@@ -674,25 +724,25 @@ extension SQLiteDatabaseTests {
         """
     }
 
-    fileprivate var _insertIDAndString: String {
-        return "INSERT INTO test VALUES (:id, :string);"
+    var _insertIDAndString: String {
+        "INSERT INTO test VALUES (:id, :string);"
     }
 
-    fileprivate var _insertOrReplaceIDAndString: String {
-        return "INSERT OR REPLACE INTO test VALUES (:id, :string);"
+    var _insertOrReplaceIDAndString: String {
+        "INSERT OR REPLACE INTO test VALUES (:id, :string);"
     }
 
-    fileprivate var _selectWhereID: String {
-        return "SELECT * FROM test WHERE id=:id;"
+    var _selectWhereID: String {
+        "SELECT * FROM test WHERE id=:id;"
     }
 }
 
-extension SQLiteDatabaseTests {
-    fileprivate var _text: String {
-        return "This is a test string! 我们要试一下！👩‍👩‍👧‍👧👮🏿"
+private extension SQLiteDatabaseTests {
+    var _text: String {
+        "This is a test string! 我们要试一下！👩‍👩‍👧‍👧👮🏿"
     }
 
-    fileprivate var _textData: Data {
-        return _text.data(using: .utf8)!
+    var _textData: Data {
+        _text.data(using: .utf8)!
     }
 }

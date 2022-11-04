@@ -1,25 +1,32 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "CombineExtensions",
-        "repositoryURL": "https://github.com/shareup/combine-extensions.git",
-        "state": {
-          "branch": null,
-          "revision": "daa0533175a050bf9da12297da794fa700cd66dc",
-          "version": "4.0.0"
-        }
-      },
-      {
-        "package": "Synchronized",
-        "repositoryURL": "https://github.com/shareup/synchronized.git",
-        "state": {
-          "branch": null,
-          "revision": "f01e4a1ee5fbf586d612a8dc0bc068603f6b9450",
-          "version": "3.0.0"
-        }
+  "pins" : [
+    {
+      "identity" : "combine-extensions",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shareup/combine-extensions.git",
+      "state" : {
+        "revision" : "84dacbe43e5f17a4e09ba6d4a293c07ac14626eb",
+        "version" : "5.0.0"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "precise-iso-8601-date-formatter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shareup/precise-iso-8601-date-formatter.git",
+      "state" : {
+        "revision" : "794ef6c96531f626c0c11a455ac3bcdbc0e1e8d8",
+        "version" : "1.0.2"
+      }
+    },
+    {
+      "identity" : "synchronized",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shareup/synchronized.git",
+      "state" : {
+        "revision" : "3a07451bbd0933933804c7d9a92ef2fa57b6766f",
+        "version" : "4.0.0"
+      }
+    }
+  ],
+  "version" : 2
 }

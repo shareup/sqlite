@@ -4,7 +4,13 @@ import SQLite3
 extension SQLiteStatement {
     static func prepare(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
         var optionalStatement: SQLiteStatement?
-        let result = sqlite3_prepare_v2(database.sqliteConnection, sql, -1, &optionalStatement, nil)
+        let result = sqlite3_prepare_v2(
+            database.sqliteConnection,
+            sql,
+            -1,
+            &optionalStatement,
+            nil
+        )
         guard SQLITE_OK == result, let statement = optionalStatement else {
             sqlite3_finalize(optionalStatement)
             throw SQLiteError.onPrepareStatement(result, sql)
@@ -12,10 +18,20 @@ extension SQLiteStatement {
         return statement
     }
 
-    static func preparePersistent(_ sql: SQL, in database: SQLiteDatabase) throws -> SQLiteStatement {
+    static func preparePersistent(
+        _ sql: SQL,
+        in database: SQLiteDatabase
+    ) throws -> SQLiteStatement {
         var optionalStatement: SQLiteStatement?
         let flag = UInt32(SQLITE_PREPARE_PERSISTENT)
-        let result = sqlite3_prepare_v3(database.sqliteConnection, sql, -1, flag, &optionalStatement, nil)
+        let result = sqlite3_prepare_v3(
+            database.sqliteConnection,
+            sql,
+            -1,
+            flag,
+            &optionalStatement,
+            nil
+        )
         guard SQLITE_OK == result, let statement = optionalStatement else {
             sqlite3_finalize(optionalStatement)
             throw SQLiteError.onPrepareStatement(result, sql)
@@ -35,9 +51,9 @@ extension SQLiteStatement {
     private func bind(value: SQLiteValue, to index: Int32) throws {
         let result: Int32
         switch value {
-        case .data(let data):
+        case let .data(data):
             result = data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> Int32 in
-                return sqlite3_bind_blob(
+                sqlite3_bind_blob(
                     self,
                     index,
                     bytes.baseAddress,
@@ -45,13 +61,13 @@ extension SQLiteStatement {
                     SQLITE_TRANSIENT
                 )
             }
-        case .double(let double):
+        case let .double(double):
             result = sqlite3_bind_double(self, index, double)
-        case .integer(let int):
+        case let .integer(int):
             result = sqlite3_bind_int64(self, index, int)
         case .null:
             result = sqlite3_bind_null(self, index)
-        case .text(let text):
+        case let .text(text):
             result = sqlite3_bind_text(self, index, text, -1, SQLITE_TRANSIENT)
         }
 
@@ -60,8 +76,8 @@ extension SQLiteStatement {
         }
     }
 
-    func evaluate() throws -> (Int32, Array<SQLiteRow>) {
-        var output = Array<SQLiteRow>()
+    func evaluate() throws -> (Int32, [SQLiteRow]) {
+        var output = [SQLiteRow]()
         var result = sqlite3_step(self)
         while result == SQLITE_ROW {
             try output.append(row())
@@ -75,9 +91,9 @@ extension SQLiteStatement {
         guard columnCount > 0 else { return [:] }
 
         var output = SQLiteRow()
-        for column in (0..<columnCount) {
+        for column in 0 ..< columnCount {
             let name = String(cString: sqlite3_column_name(self, column))
-            let value = try self.value(at: column)
+            let value = try value(at: column)
             output[name] = value
         }
         return output
@@ -110,11 +126,11 @@ extension SQLiteStatement {
     }
 
     func reset() {
-        let _ = sqlite3_reset(self)
+        _ = sqlite3_reset(self)
     }
 
     func resetAndClearBindings() {
-        let _ = sqlite3_reset(self)
-        let _ = sqlite3_clear_bindings(self)
+        _ = sqlite3_reset(self)
+        _ = sqlite3_clear_bindings(self)
     }
 }

@@ -32,11 +32,11 @@ struct Pet: Codable, Hashable {
 
 extension PetOwner: SQLiteTransformable {
     init(row: SQLiteRow) throws {
-        self.id = try row.value(for: "person_id")
-        self.name = try row.value(for: "person_name")
-        self.age = try row.value(for: "person_age")
-        self.title = row.optionalValue(for: "person_title")
-        self.pet = Pet(
+        id = try row.value(for: "person_id")
+        name = try row.value(for: "person_name")
+        age = try row.value(for: "person_age")
+        title = row.optionalValue(for: "person_title")
+        pet = Pet(
             name: try row.value(for: "pet_name"),
             ownerID: try row.value(for: "pet_owner_id"),
             type: try row.value(for: "pet_type"),
@@ -45,7 +45,7 @@ extension PetOwner: SQLiteTransformable {
     }
 
     static var getAll: SQL {
-        return """
+        """
         SELECT
             people.id AS person_id,
             people.name AS person_name,
@@ -62,30 +62,30 @@ extension PetOwner: SQLiteTransformable {
 
 extension Person: SQLiteTransformable {
     init(row: SQLiteRow) throws {
-        self.id = try row.value(for: CodingKeys.id)
-        self.name = try row.value(for: CodingKeys.name)
-        self.age = try row.value(for: CodingKeys.age)
-        self.title = row.optionalValue(for: CodingKeys.title)
+        id = try row.value(for: CodingKeys.id)
+        name = try row.value(for: CodingKeys.name)
+        age = try row.value(for: CodingKeys.age)
+        title = row.optionalValue(for: CodingKeys.title)
     }
 
     var asArguments: SQLiteArguments {
         let titleValue: SQLiteValue
-        if let title = self.title {
+        if let title {
             titleValue = .text(title)
         } else {
             titleValue = .null
         }
 
         return [
-            "id": .text(self.id),
-            "name": .text(self.name),
-            "age": .integer(Int64(self.age)),
-            "title": titleValue
+            "id": .text(id),
+            "name": .text(name),
+            "age": .integer(Int64(age)),
+            "title": titleValue,
         ]
     }
 
     static var createTable: SQL {
-        return """
+        """
         CREATE TABLE people (
             id TEXT PRIMARY KEY NOT NULL,
             name TEXT NOT NULL,
@@ -96,49 +96,49 @@ extension Person: SQLiteTransformable {
     }
 
     static var getAll: SQL {
-        return "SELECT * FROM people;"
+        "SELECT * FROM people;"
     }
 
     static var getWithID: SQL {
-        return "SELECT * FROM people WHERE id=:id;"
+        "SELECT * FROM people WHERE id=:id;"
     }
 
     static var getWithName: SQL {
-        return "SELECT * FROM people where name=:name;"
+        "SELECT * FROM people where name=:name;"
     }
 
     static var insert: SQL {
-        return "INSERT OR REPLACE INTO people VALUES (:id, :name, :age, :title);"
+        "INSERT OR REPLACE INTO people VALUES (:id, :name, :age, :title);"
     }
 
     static var updateTitleWithID: SQL {
-        return "UPDATE people SET title=:title WHERE id=:id;"
+        "UPDATE people SET title=:title WHERE id=:id;"
     }
 
     static var deleteWithID: SQL {
-        return "DELETE FROM people WHERE id=:id;"
+        "DELETE FROM people WHERE id=:id;"
     }
 }
 
 extension Pet: SQLiteTransformable {
     init(row: SQLiteRow) throws {
-        self.name = try row.value(for: CodingKeys.name)
-        self.ownerID = try row.value(for: CodingKeys.ownerID)
-        self.type = try row.value(for: CodingKeys.type)
-        self.registrationID = try row.value(for: CodingKeys.registrationID)
+        name = try row.value(for: CodingKeys.name)
+        ownerID = try row.value(for: CodingKeys.ownerID)
+        type = try row.value(for: CodingKeys.type)
+        registrationID = try row.value(for: CodingKeys.registrationID)
     }
 
     var asArguments: SQLiteArguments {
-        return [
-            "name": .text(self.name),
-            "owner_id": .text(self.ownerID),
-            "type": .text(self.type),
-            "registration_id": .text(self.registrationID)
+        [
+            "name": .text(name),
+            "owner_id": .text(ownerID),
+            "type": .text(type),
+            "registration_id": .text(registrationID),
         ]
     }
 
     static var createTable: SQL {
-        return """
+        """
         CREATE TABLE pets (
             name TEXT NOT NULL,
             owner_id TEXT NOT NULL UNIQUE,
@@ -150,26 +150,26 @@ extension Pet: SQLiteTransformable {
     }
 
     static var getAll: SQL {
-        return "SELECT * FROM pets;"
+        "SELECT * FROM pets;"
     }
 
     static var getWithName: SQL {
-        return "SELECT * FROM pets WHERE name=:name;"
+        "SELECT * FROM pets WHERE name=:name;"
     }
 
     static var getWithOwnerID: SQL {
-        return "SELECT * FROM pets WHERE owner_id=:owner_id;"
+        "SELECT * FROM pets WHERE owner_id=:owner_id;"
     }
 
     static var insert: SQL {
-        return "INSERT OR REPLACE INTO pets VALUES (:name, :owner_id, :type, :registration_id);"
+        "INSERT OR REPLACE INTO pets VALUES (:name, :owner_id, :type, :registration_id);"
     }
 
     static var updateNameWithRegistrationID: SQL {
-        return "UPDATE pets SET name=:name WHERE registration_id=:registration_id;"
+        "UPDATE pets SET name=:name WHERE registration_id=:registration_id;"
     }
 
     static var deleteWithName: SQL {
-        return "DELETE FROM pets WHERE name=:name;"
+        "DELETE FROM pets WHERE name=:name;"
     }
 }

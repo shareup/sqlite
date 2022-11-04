@@ -14,8 +14,8 @@ struct SQLiteVersion: Comparable {
     init(rows: [SQLiteRow]) throws {
         guard let row = rows.first,
               let version = row["version"]?
-                .stringValue?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+              .stringValue?
+              .trimmingCharacters(in: .whitespacesAndNewlines)
         else { throw SQLiteError.onInvalidSQLiteVersion }
 
         let components = version.components(separatedBy: ".").compactMap(Int.init)
@@ -49,6 +49,6 @@ struct SQLiteVersion: Comparable {
 
     var isSupported: Bool {
         self >= SQLiteVersion(major: 3, minor: 24, patch: 0) &&
-        self < SQLiteVersion(major: 4, minor: 0, patch: 0)
+            self < SQLiteVersion(major: 4, minor: 0, patch: 0)
     }
 }

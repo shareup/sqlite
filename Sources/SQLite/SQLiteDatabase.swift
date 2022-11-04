@@ -1,12 +1,12 @@
-import Foundation
 import Combine
+import Foundation
 import SQLite3
 
 public final class SQLiteDatabase {
     public var path: String { _path }
     internal var sqliteConnection: OpaquePointer { sync { _connection } }
 
-    public var hasOpenTransactions: Bool { return _transactionCount != 0 }
+    public var hasOpenTransactions: Bool { _transactionCount != 0 }
     private var _transactionCount = 0
 
     private var _connection: OpaquePointer
@@ -16,7 +16,7 @@ public final class SQLiteDatabase {
     internal var sqliteVersion: SQLiteVersion { _sqliteVersion }
     private var _sqliteVersion: SQLiteVersion!
 
-    private var _cachedStatements = Dictionary<String, SQLiteStatement>()
+    private var _cachedStatements = [String: SQLiteStatement]()
     private var _changePublisher: SQLiteDatabaseChangePublisher!
     private let _hook = Hook()
 
@@ -29,9 +29,9 @@ public final class SQLiteDatabase {
 
         let coordinator = NSFileCoordinator(filePresenter: nil)
 
-        var database: SQLiteDatabase? = nil
-        var fileCoordinatorError: NSError? = nil
-        var databaseError: Error? = nil
+        var database: SQLiteDatabase?
+        var fileCoordinatorError: NSError?
+        var databaseError: Error?
 
         coordinator.coordinate(
             writingItemAt: url,
@@ -91,13 +91,13 @@ public final class SQLiteDatabase {
 
 // MARK: - Asynchronous queries
 
-extension SQLiteDatabase {
-    public func inTransactionPublisher<T>(
+public extension SQLiteDatabase {
+    func inTransactionPublisher<T>(
         _ block: @escaping (SQLiteDatabase) throws -> T
     ) -> AnyPublisher<T, SQLiteError> {
-        SQLiteFuture { (promise) in
+        SQLiteFuture { promise in
             SQLiteQueue.async { [weak self] in
-                guard let self = self else {
+                guard let self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
                 }
@@ -115,7 +115,7 @@ extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
-    public func writePublisher(
+    func writePublisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<Void, SQLiteError> {
@@ -123,7 +123,7 @@ extension SQLiteDatabase {
             try self.cachedStatement(for: sql)
         }
 
-        let resetStatement = { (statement: OpaquePointer) -> Void in
+        let resetStatement = { (statement: OpaquePointer) in
             statement.resetAndClearBindings()
         }
 
@@ -134,7 +134,7 @@ extension SQLiteDatabase {
             resetStatement: resetStatement
         )
         .tryMap { rows in throw SQLiteError.onWrite(rows) }
-        .mapError { (error) -> SQLiteError in
+        .mapError { error -> SQLiteError in
             if let sqliteError = error as? SQLiteError {
                 return sqliteError
             } else {
@@ -144,12 +144,15 @@ extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
-    public func readPublisher(_ sql: SQL, arguments: SQLiteArguments = [:]) -> AnyPublisher<[SQLiteRow], SQLiteError> {
+    func readPublisher(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:]
+    ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
         let prepareStatement = { [unowned self] () throws -> OpaquePointer in
             try self.cachedStatement(for: sql)
         }
 
-        let resetStatement = { (statement: OpaquePointer) -> Void in
+        let resetStatement = { (statement: OpaquePointer) in
             statement.resetAndClearBindings()
         }
 
@@ -162,13 +165,13 @@ extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
-    public func readPublisher<T: SQLiteTransformable>(
+    func readPublisher<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[T], SQLiteError> {
         readPublisher(sql, arguments: arguments)
-            .tryMap { try $0.map { try T.init(row: $0) } }
-            .mapError { (error) -> SQLiteError in
+            .tryMap { try $0.map { try T(row: $0) } }
+            .mapError { error -> SQLiteError in
                 if let sqliteError = error as? SQLiteError {
                     return sqliteError
                 } else {
@@ -181,9 +184,9 @@ extension SQLiteDatabase {
 
 // MARK: - Synchronous queries
 
-extension SQLiteDatabase {
-    public func inTransaction<T>(_ block: (SQLiteDatabase) throws -> T) rethrows -> T {
-        return try sync {
+public extension SQLiteDatabase {
+    func inTransaction<T>(_ block: (SQLiteDatabase) throws -> T) rethrows -> T {
+        try sync {
             _transactionCount += 1
             defer { _transactionCount -= 1 }
 
@@ -199,7 +202,7 @@ extension SQLiteDatabase {
         }
     }
 
-    public func write(_ sql: SQL, arguments: SQLiteArguments = [:]) throws {
+    func write(_ sql: SQL, arguments: SQLiteArguments = [:]) throws {
         try sync {
             guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
@@ -213,8 +216,8 @@ extension SQLiteDatabase {
         }
     }
 
-    public func read(_ sql: SQL, arguments: SQLiteArguments = [:]) throws -> Array<SQLiteRow> {
-        return try sync {
+    func read(_ sql: SQL, arguments: SQLiteArguments = [:]) throws -> [SQLiteRow] {
+        try sync {
             guard _isOpen else { throw SQLiteError.databaseIsClosed }
             let statement = try self.cachedStatement(for: sql)
             defer { statement.resetAndClearBindings() }
@@ -222,19 +225,19 @@ extension SQLiteDatabase {
         }
     }
 
-    public func read<T: SQLiteTransformable>(
+    func read<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
-    ) throws -> Array<T> {
-        return try sync {
-            let rows: Array<SQLiteRow> = try read(sql, arguments: arguments)
-            return try rows.map { try T.init(row: $0) }
+    ) throws -> [T] {
+        try sync {
+            let rows: [SQLiteRow] = try read(sql, arguments: arguments)
+            return try rows.map { try T(row: $0) }
         }
     }
 
     @discardableResult
-    public func execute(raw sql: SQL) throws -> Array<SQLiteRow> {
-        return try sync {
+    func execute(raw sql: SQL) throws -> [SQLiteRow] {
+        try sync {
             guard _isOpen else { throw SQLiteError.databaseIsClosed }
 
             let statement = try prepare(sql)
@@ -247,9 +250,9 @@ extension SQLiteDatabase {
 
 // MARK: - Tables and columns
 
-extension SQLiteDatabase {
-    public func tables() throws -> Array<String> {
-        return try sync {
+public extension SQLiteDatabase {
+    func tables() throws -> [String] {
+        try sync {
             let sql = "SELECT * FROM sqlite_master WHERE type='table';"
             let statement = try cachedStatement(for: sql)
             let tablesResult = try _execute(sql, statement: statement, arguments: [:])
@@ -258,8 +261,8 @@ extension SQLiteDatabase {
         }
     }
 
-    public func columns(in table: String) throws -> Array<String> {
-        return try sync {
+    func columns(in table: String) throws -> [String] {
+        try sync {
             let sql = columnsSQL(for: table)
             let statement = try cachedStatement(for: sql)
             let columnsResult = try _execute(sql, statement: statement, arguments: [:])
@@ -269,7 +272,7 @@ extension SQLiteDatabase {
     }
 
     private func columnsSQL(for table: String) -> SQL {
-        return """
+        """
         SELECT DISTINCT ti.name AS name, ti.pk AS pk
             FROM sqlite_master AS m, pragma_table_info(m.name) as ti
             WHERE m.type='table'
@@ -280,15 +283,15 @@ extension SQLiteDatabase {
 
 // MARK: - Combine Publishers observing SQL queries
 
-extension SQLiteDatabase {
-    public func publisher(
+public extension SQLiteDatabase {
+    func publisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
         tables: [String] = []
-    ) -> AnyPublisher<Array<SQLiteRow>, SQLiteError> {
+    ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
         guard canSubscribeToDatabase else {
             return Fail(
-                outputType: Array<SQLiteRow>.self,
+                outputType: [SQLiteRow].self,
                 failure: SQLiteError.onSubscribeWithoutColumnMetadata
             ).eraseToAnyPublisher()
         }
@@ -298,35 +301,38 @@ extension SQLiteDatabase {
             .eraseToAnyPublisher()
     }
 
-    // Swift favors type inference and, consequently, does not allow specializing functions at the call site.
-    // This means that combining multiple `Combine.Publisher` together can be frustrating because
-    // Swift can't infer the type. Adding this function that includes the generic type means we don't
+    // Swift favors type inference and, consequently, does not allow specializing functions at
+    // the call site.
+    // This means that combining multiple `Combine.Publisher` together can be frustrating
+    // because
+    // Swift can't infer the type. Adding this function that includes the generic type means we
+    // don't
     // need to specify the type at the call site using `as Array<T>`.
     // https://forums.swift.org/t/compiler-cannot-infer-the-type-of-a-generic-method-cannot-specialize-a-non-generic-definition/10294
-    public func publisher<T: SQLiteTransformable>(
-        _ type: T.Type,
+    func publisher<T: SQLiteTransformable>(
+        _: T.Type,
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
         tables: [String] = []
-    ) -> AnyPublisher<Array<T>, SQLiteError> {
-        return publisher(sql, arguments: arguments, tables: tables) as AnyPublisher<Array<T>, SQLiteError>
+    ) -> AnyPublisher<[T], SQLiteError> {
+        publisher(sql, arguments: arguments, tables: tables) as AnyPublisher<[T], SQLiteError>
     }
 
-    public func publisher<T: SQLiteTransformable>(
+    func publisher<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
         tables: [String] = []
-    ) -> AnyPublisher<Array<T>, SQLiteError> {
+    ) -> AnyPublisher<[T], SQLiteError> {
         guard canSubscribeToDatabase else {
             return Fail(
-                outputType: Array<T>.self,
+                outputType: [T].self,
                 failure: SQLiteError.onSubscribeWithoutColumnMetadata
             ).eraseToAnyPublisher()
         }
 
         return _changePublisher
             .results(sql: sql, arguments: arguments, tables: tables, database: self)
-            .tryMap { try $0.map { try T.init(row: $0) } }
+            .tryMap { try $0.map { try T(row: $0) } }
             .mapError { (error: Swift.Error) -> SQLiteError in
                 if let sqliteError = error as? SQLiteError {
                     return sqliteError
@@ -337,7 +343,7 @@ extension SQLiteDatabase {
     }
 
     private var canSubscribeToDatabase: Bool {
-        return sync { sqlite3_compileoption_used("SQLITE_ENABLE_COLUMN_METADATA") == Int32(1) }
+        sync { sqlite3_compileoption_used("SQLITE_ENABLE_COLUMN_METADATA") == Int32(1) }
     }
 }
 
@@ -345,29 +351,30 @@ extension SQLiteDatabase {
 
 extension SQLiteDatabase: Equatable {
     public static func == (lhs: SQLiteDatabase, rhs: SQLiteDatabase) -> Bool {
-        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+        ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
     }
 }
 
 // MARK: - Compile-time SQLite options
 
-extension SQLiteDatabase {
-    public var supportsJSON: Bool {
-        return isCompileOptionEnabled("ENABLE_JSON1")
+public extension SQLiteDatabase {
+    var supportsJSON: Bool {
+        isCompileOptionEnabled("ENABLE_JSON1")
     }
 
-    public func isCompileOptionEnabled(_ name: String) -> Bool {
-        return sqlite3_compileoption_used(name) == 1
+    func isCompileOptionEnabled(_ name: String) -> Bool {
+        sqlite3_compileoption_used(name) == 1
     }
 }
 
 // MARK: - Pragmas
 
-extension SQLiteDatabase {
-    public var userVersion: Int {
+public extension SQLiteDatabase {
+    var userVersion: Int {
         get {
             do {
-                guard let result = try execute(raw: "PRAGMA user_version;").first else { return 0 }
+                guard let result = try execute(raw: "PRAGMA user_version;").first
+                else { return 0 }
                 return result["user_version"]?.intValue ?? 0
             } catch {
                 assertionFailure("Could not get user_version: \(error)")
@@ -383,10 +390,11 @@ extension SQLiteDatabase {
         }
     }
 
-    public var isForeignKeySupportEnabled: Bool {
+    var isForeignKeySupportEnabled: Bool {
         get {
             do {
-                guard let result = try execute(raw: "PRAGMA foreign_keys;").first else { return false }
+                guard let result = try execute(raw: "PRAGMA foreign_keys;").first
+                else { return false }
                 return result["foreign_keys"]?.boolValue ?? false
             } catch {
                 assertionFailure("Could not get foreign_keys: \(error)")
@@ -405,8 +413,8 @@ extension SQLiteDatabase {
 
 // MARK: - Vacuuming
 
-extension SQLiteDatabase {
-    public enum AutoVacuumMode: Int {
+public extension SQLiteDatabase {
+    enum AutoVacuumMode: Int {
         case none = 0
         case incremental = 2
         case full = 1
@@ -421,7 +429,7 @@ extension SQLiteDatabase {
         }
     }
 
-    public var autoVacuumMode: AutoVacuumMode {
+    var autoVacuumMode: AutoVacuumMode {
         get {
             do {
                 guard let result = try execute(raw: "PRAGMA auto_vacuum;").first
@@ -438,9 +446,9 @@ extension SQLiteDatabase {
         }
     }
 
-    public func incrementalVacuum(_ pages: Int? = nil) throws {
+    func incrementalVacuum(_ pages: Int? = nil) throws {
         let sql: SQL
-        if let pages = pages {
+        if let pages {
             sql = "PRAGMA incremental_vacuum(\(pages));"
         } else {
             sql = "PRAGMA incremental_vacuum;"
@@ -448,7 +456,7 @@ extension SQLiteDatabase {
         try execute(raw: sql)
     }
 
-    public func vacuum() throws {
+    func vacuum() throws {
         try execute(raw: "VACUUM;")
     }
 }
@@ -461,7 +469,7 @@ extension SQLiteDatabase {
 
         let updateBlock: UpdateHookCallback = { _, _, _, tableName, _ in
             precondition(SQLiteQueue.isCurrentQueue)
-            guard let tableName = tableName else { return }
+            guard let tableName else { return }
             block(String(cString: tableName))
         }
 
@@ -512,9 +520,9 @@ extension SQLiteDatabase {
         prepareStatement: @escaping () throws -> OpaquePointer,
         resetStatement: @escaping (OpaquePointer) -> Void
     ) -> SQLiteFuture<[SQLiteRow]> {
-        SQLiteFuture { (promise) in
+        SQLiteFuture { promise in
             SQLiteQueue.async { [weak self] in
-                guard let self = self else {
+                guard let self else {
                     promise(.failure(.onExecuteQueryAfterDeallocating))
                     return
                 }
@@ -549,7 +557,7 @@ extension SQLiteDatabase {
         try statement.bind(arguments: arguments)
         let (result, output) = try statement.evaluate()
 
-        if result != SQLITE_DONE && result != SQLITE_INTERRUPT {
+        if result != SQLITE_DONE, result != SQLITE_INTERRUPT {
             throw SQLiteError.onStep(result, sql)
         }
 
@@ -582,7 +590,7 @@ extension SQLiteDatabase {
 
 extension SQLiteDatabase {
     private func getSQLiteVersion() throws -> SQLiteVersion {
-        return try SQLiteVersion(
+        try SQLiteVersion(
             rows: try execute(raw: SQLiteVersion.selectVersion)
         )
     }
@@ -622,7 +630,7 @@ extension SQLiteDatabase {
     }
 
     private class func close(_ connection: OpaquePointer?) throws {
-        guard let connection = connection else { return }
+        guard let connection else { return }
         let result = sqlite3_close(connection)
         guard result == SQLITE_OK else { throw SQLiteError.onClose(result) }
     }

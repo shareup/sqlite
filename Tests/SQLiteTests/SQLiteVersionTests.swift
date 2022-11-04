@@ -1,5 +1,5 @@
-import XCTest
 @testable import SQLite
+import XCTest
 
 final class SQLiteVersionTests: XCTestCase {
     func testInitWithRows() throws {

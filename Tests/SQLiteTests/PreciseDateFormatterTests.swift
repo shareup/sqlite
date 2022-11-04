@@ -1,7 +1,8 @@
-import XCTest
+import PreciseISO8601DateFormatter
 @testable import SQLite
+import XCTest
 
-class PreciseDateFormatterTests: XCTestCase {
+final class PreciseDateFormatterTests: XCTestCase {
     func testCurrentDateSerializesAndDeserializes() throws {
         let date = Date()
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
@@ -11,7 +12,7 @@ class PreciseDateFormatterTests: XCTestCase {
     }
 
     func testUnixTimestampSerializesAndDeserializes() throws {
-        let date = Date(timeIntervalSince1970: 1534500993.44331)
+        let date = Date(timeIntervalSince1970: 1_534_500_993.44331)
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
         let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
         XCTAssertNotNil(dateFromString)
@@ -19,7 +20,9 @@ class PreciseDateFormatterTests: XCTestCase {
     }
 
     func testISO8601DateSerializesAndDeserializes() throws {
-        guard let date = iso8601.date(from: "2018-08-17T10:22:09.995599") else { return XCTFail() }
+        let formatter = PreciseISO8601DateFormatter()
+        guard let date = formatter.date(from: "2018-08-17T10:22:09.995599Z")
+        else { return XCTFail() }
         let dateAsString = SQLite.PreciseDateFormatter.string(from: date)
         let dateFromString = SQLite.PreciseDateFormatter.date(from: dateAsString)
         XCTAssertNotNil(dateFromString)
@@ -27,7 +30,7 @@ class PreciseDateFormatterTests: XCTestCase {
     }
 
     func testEncodingAndDecodingPreciseDate() throws {
-        let date = Date(timeIntervalSince1970: 1534500993.44331)
+        let date = Date(timeIntervalSince1970: 1_534_500_993.44331)
         let optionalSome = Date(timeIntervalSince1970: 1)
         let optionalNone: Date? = nil
 
@@ -58,22 +61,13 @@ private struct Model: Codable, Equatable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.date = try container.decodePreciseDate(forKey: .date)
-        self.optionalDate = try container.decodePreciseDateIfPresent(forKey: .optionalDate)
+        date = try container.decodePreciseDate(forKey: .date)
+        optionalDate = try container.decodePreciseDateIfPresent(forKey: .optionalDate)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(preciseDate: self.date, forKey: .date)
-        try container.encodeIfPresent(preciseDate: self.optionalDate, forKey: .optionalDate)
+        try container.encode(preciseDate: date, forKey: .date)
+        try container.encodeIfPresent(preciseDate: optionalDate, forKey: .optionalDate)
     }
 }
-
-private let iso8601: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.calendar = Calendar(identifier: .iso8601)
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-    return formatter
-}()

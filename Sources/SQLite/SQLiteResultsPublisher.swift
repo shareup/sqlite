@@ -1,7 +1,7 @@
+import Combine
 import Foundation
 import SQLite3
 import Synchronized
-import Combine
 
 extension Publisher where Output == SQLiteDatabaseChange, Failure == Never {
     func results(
@@ -227,7 +227,8 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                     return { self.publish() }
 
                 case let .updateTables(updatedTables):
-                    guard tables.isEmpty || !tables.isDisjoint(with: updatedTables) else { return nil }
+                    guard tables.isEmpty || !tables.isDisjoint(with: updatedTables)
+                    else { return nil }
                     return { self.publish() }
 
                 case .updateAllTables:
@@ -271,7 +272,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
         return .none // We requested .unlimited when first subscribing
     }
 
-    func receive(completion: Subscribers.Completion<Never>) {
+    func receive(completion _: Subscribers.Completion<Never>) {
         let _subscriber: S? = lock.locked {
             state.cancel()
             let sub = subscriber
@@ -307,7 +308,7 @@ private final class SQLiteStatementResultsSubscription<S>: Subscription, Subscri
                 // then cause the app to crash when `statement.reset()` is called.
                 // So, we need to make sure the reset happens as soon as the statement
                 // is evaluated.
-                let result: Array<SQLiteRow>
+                let result: [SQLiteRow]
                 do {
                     defer { statement.reset() }
                     guard let r = try? statement.evaluate() else { return }
