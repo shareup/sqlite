@@ -17,7 +17,7 @@ To use SQLite with the Swift Package Manager, add a dependency to your Package.s
 ```swift
 let package = Package(
   dependencies: [
-    .package(url: "https://github.com/shareup/sqlite.git", .upToNextMajor(from: "17.0.0"))
+    .package(url: "https://github.com/shareup/sqlite.git", .upToNextMajor(from: "18.0.0"))
   ]
 )
 ```

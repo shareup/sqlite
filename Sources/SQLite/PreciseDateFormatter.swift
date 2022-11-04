@@ -1,11 +1,9 @@
 import Foundation
 import PreciseISO8601DateFormatter
 
-// `ISO8601DateFormatter` does not maintain nanosecond precision, which makes it
+// `ISO8601DateFormatter` does not maintain microsecond precision, which makes it
 // nearly impossible to equate encodable objects that include `Date` properties.
-// `DateFormatter` maintains nanosecond precision by storing the exact
-// bit pattern of `Date.timeIntervalSinceReferenceDate`, which is the type's
-// underlying primitive. https://developer.apple.com/documentation/foundation/nsdate
+// `DateFormatter` maintains microsecond precision.
 public enum PreciseDateFormatter {
     public static func string(from date: Date) -> String {
         formatter.string(from: date)
