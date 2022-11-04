@@ -1,7 +1,7 @@
-import XCTest
 import SQLite
+import XCTest
 
-class SQLiteValueTests: XCTestCase {
+final class SQLiteValueTests: XCTestCase {
     func testBinaryIntegerSQLiteValue() throws {
         let int: Int = -123
         let uint: UInt = 123
@@ -23,7 +23,7 @@ class SQLiteValueTests: XCTestCase {
     }
 
     func testDataSQLiteValue() throws {
-        let bytes: Array<UInt8> = Array("👋👪".utf8)
+        let bytes: [UInt8] = Array("👋👪".utf8)
         let data = Data(bytes)
         XCTAssertEqual(.data(data), bytes.sqliteValue)
         XCTAssertEqual(.data(data), data.sqliteValue)
@@ -73,7 +73,7 @@ class SQLiteValueTests: XCTestCase {
     }
 
     func testOptionalDataSQLiteValue() throws {
-        let bytes: Array<UInt8>? = Array("👋👪".utf8)
+        let bytes: [UInt8]? = Array("👋👪".utf8)
         let data: Data? = Data(bytes!)
         let optional: Data? = nil
 
@@ -102,7 +102,7 @@ class SQLiteValueTests: XCTestCase {
     func testOptionalStringSQLiteValue() throws {
         let text: String? = "👋👪"
         let optional: String? = nil
-        
+
         XCTAssertEqual(.text(text!), text.sqliteValue)
         XCTAssertEqual(.null, optional.sqliteValue)
     }

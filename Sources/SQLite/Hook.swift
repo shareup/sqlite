@@ -16,21 +16,21 @@ func updateHookWrapper(
     databaseName: UnsafePointer<Int8>?,
     tableName: UnsafePointer<Int8>?,
     rowid: sqlite3_int64
-) -> Void {
-    guard let context = context else { return }
+) {
+    guard let context else { return }
     let hook = Unmanaged<Hook>.fromOpaque(context).takeUnretainedValue()
     hook.update?(context, operationType, databaseName, tableName, rowid)
 }
 
 func commitHookWrapper(context: UnsafeMutableRawPointer?) -> Int32 {
-    guard let context = context else { return 0 }
+    guard let context else { return 0 }
     let hook = Unmanaged<Hook>.fromOpaque(context).takeUnretainedValue()
     hook.commit?()
     return 0
 }
 
 func rollbackHookWrapper(context: UnsafeMutableRawPointer?) {
-    guard let context = context else { return }
+    guard let context else { return }
     let hook = Unmanaged<Hook>.fromOpaque(context).takeUnretainedValue()
     hook.rollback?()
 }

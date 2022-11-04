@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 import Synchronized
 
 struct SQLiteFuture<Output>: Publisher {
@@ -27,7 +27,7 @@ struct SQLiteFuture<Output>: Publisher {
 }
 
 private final class SQLiteFutureSubscription<Output, S: Subscriber>: Subscription
-where
+    where
     S.Input == Output,
     S.Failure == SQLiteError
 {
@@ -48,7 +48,7 @@ where
         subscriber: S
     ) {
         self.subscriber = subscriber
-        attemptToFulfill({ result in self.fulfill(with: result) })
+        attemptToFulfill { result in self.fulfill(with: result) }
     }
 
     deinit {

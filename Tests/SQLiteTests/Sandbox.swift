@@ -22,7 +22,7 @@ final class Sandbox {
 
 private extension Sandbox {
     static var temporaryDirectory: URL {
-        return FileManager.default.temporaryDirectory.appendingPathComponent("\(arc4random())")
+        FileManager.default.temporaryDirectory.appendingPathComponent("\(arc4random())")
     }
 
     func createDirectory(at url: URL) throws {

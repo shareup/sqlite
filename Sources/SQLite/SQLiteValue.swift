@@ -1,8 +1,8 @@
 import Foundation
 import SQLite3
 
-public typealias SQLiteArguments = Dictionary<String, SQLiteValue>
-public typealias SQLiteRow = Dictionary<String, SQLiteValue>
+public typealias SQLiteArguments = [String: SQLiteValue]
+public typealias SQLiteRow = [String: SQLiteValue]
 
 public enum SQLiteValue: Hashable {
     case data(Data)
@@ -12,76 +12,76 @@ public enum SQLiteValue: Hashable {
     case text(String)
 }
 
-extension SQLiteValue {
-    public var boolValue: Bool? {
-        guard case .integer(let int) = self else { return nil }
+public extension SQLiteValue {
+    var boolValue: Bool? {
+        guard case let .integer(int) = self else { return nil }
         return int == 0 ? false : true
     }
 
-    public var dataValue: Data? {
-        guard case .data(let data) = self else { return nil }
+    var dataValue: Data? {
+        guard case let .data(data) = self else { return nil }
         return data
     }
 
-    public var doubleValue: Double? {
-        guard case .double(let double) = self else { return nil }
+    var doubleValue: Double? {
+        guard case let .double(double) = self else { return nil }
         return double
     }
 
-    public var intValue: Int? {
-        guard case .integer(let int) = self else { return nil }
+    var intValue: Int? {
+        guard case let .integer(int) = self else { return nil }
         return Int(int)
     }
 
-    public var int64Value: Int64? {
-        guard case .integer(let int) = self else { return nil }
+    var int64Value: Int64? {
+        guard case let .integer(int) = self else { return nil }
         return int
     }
 
-    public var stringValue: String? {
-        guard case .text(let string) = self else { return nil }
+    var stringValue: String? {
+        guard case let .text(string) = self else { return nil }
         return string
     }
 }
 
-extension Array where Element == UInt8 {
-    public var sqliteValue: SQLiteValue {
+public extension [UInt8] {
+    var sqliteValue: SQLiteValue {
         .data(Data(self))
     }
 }
 
-extension BinaryInteger {
-    public var sqliteValue: SQLiteValue {
+public extension BinaryInteger {
+    var sqliteValue: SQLiteValue {
         .integer(Int64(self))
     }
 }
 
-extension Bool {
-    public var sqliteValue: SQLiteValue {
+public extension Bool {
+    var sqliteValue: SQLiteValue {
         .integer(self ? 1 : 0)
     }
 }
 
-extension Data {
-    public var sqliteValue: SQLiteValue {
+public extension Data {
+    var sqliteValue: SQLiteValue {
         .data(self)
     }
 }
 
-extension Date {
-    public var sqliteValue: SQLiteValue {
+public extension Date {
+    var sqliteValue: SQLiteValue {
         .text(PreciseDateFormatter.string(from: self))
     }
 }
 
-extension StringProtocol {
-    public var sqliteValue: SQLiteValue {
+public extension StringProtocol {
+    var sqliteValue: SQLiteValue {
         .text(String(self))
     }
 }
 
-extension Optional where Wrapped == Array<UInt8> {
-    public var sqliteValue: SQLiteValue {
+public extension [UInt8]? {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null
@@ -91,8 +91,8 @@ extension Optional where Wrapped == Array<UInt8> {
     }
 }
 
-extension Optional where Wrapped: BinaryInteger {
-    public var sqliteValue: SQLiteValue {
+public extension Optional where Wrapped: BinaryInteger {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null
@@ -102,8 +102,8 @@ extension Optional where Wrapped: BinaryInteger {
     }
 }
 
-extension Optional where Wrapped == Bool {
-    public var sqliteValue: SQLiteValue {
+public extension Bool? {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null
@@ -113,8 +113,8 @@ extension Optional where Wrapped == Bool {
     }
 }
 
-extension Optional where Wrapped == Data {
-    public var sqliteValue: SQLiteValue {
+public extension Data? {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null
@@ -124,8 +124,8 @@ extension Optional where Wrapped == Data {
     }
 }
 
-extension Optional where Wrapped == Date {
-    public var sqliteValue: SQLiteValue {
+public extension Date? {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null
@@ -135,8 +135,8 @@ extension Optional where Wrapped == Date {
     }
 }
 
-extension Optional where Wrapped: StringProtocol {
-    public var sqliteValue: SQLiteValue {
+public extension Optional where Wrapped: StringProtocol {
+    var sqliteValue: SQLiteValue {
         switch self {
         case .none:
             return .null

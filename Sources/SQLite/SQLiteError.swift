@@ -15,7 +15,7 @@ public enum SQLiteError: Error, Equatable {
     case onGetParameterIndex(String)
     case onBindParameter(Int32, Int32, SQLiteValue)
     case onStep(Int32, String)
-    case onWrite(Array<SQLiteRow>)
+    case onWrite([SQLiteRow])
     case onGetColumnType(Int32)
     case onBeginTransactionAfterDeallocating
     case onExecuteQueryAfterDeallocating
@@ -31,8 +31,8 @@ public enum SQLiteError: Error, Equatable {
     case onTryToObserveZeroTables
 }
 
-extension SQLiteError {
-    public var code: Int32? {
+public extension SQLiteError {
+    var code: Int32? {
         switch self {
         case .databaseIsClosed:
             return nil
@@ -91,12 +91,12 @@ extension SQLiteError {
         }
     }
 
-    public var isBusy: Bool {
-        guard let code = code else { return false }
+    var isBusy: Bool {
+        guard let code else { return false }
         return code == SQLITE_BUSY
     }
 
-    public var isClosed: Bool {
+    var isClosed: Bool {
         guard case .databaseIsClosed = self else { return false }
         return true
     }
@@ -105,19 +105,19 @@ extension SQLiteError {
 extension SQLiteError: CustomStringConvertible {
     public var description: String {
         func string(for code: Int32) -> String {
-            return String(cString: sqlite3_errstr(code))
+            String(cString: sqlite3_errstr(code))
         }
 
         switch self {
         case .databaseIsClosed:
             return "Database is closed"
-        case .onInternalError(let error):
+        case let .onInternalError(error):
             return "Internal error: '\(String(describing: error))'"
-        case .onInvalidPath(let path):
+        case let .onInvalidPath(path):
             return "Invalid path: '\(path)'"
-        case .onOpenSharedDatabase(let path, let error):
+        case let .onOpenSharedDatabase(path, error):
             return "Could not open shared database at '\(path)': \(error)"
-        case .onOpen(let code, let path):
+        case let .onOpen(code, path):
             return "Could not open database at '\(path)': \(string(for: code))"
         case let .onEnableWAL(code):
             return "Could not enable WAL mode: \(string(for: code))"
@@ -125,35 +125,35 @@ extension SQLiteError: CustomStringConvertible {
             return "Invalid SQLite version"
         case let .onUnsupportedSQLiteVersion(major, minor, patch):
             return "Unsupported SQLite version: \(major).\(minor).\(patch)"
-        case .onClose(let code):
+        case let .onClose(code):
             return "Could not close database: \(string(for: code))"
-        case .onPrepareStatement(let code, let sql):
+        case let .onPrepareStatement(code, sql):
             return "Could not prepare statement for '\(sql)': \(string(for: code))"
-        case .onGetParameterIndex(let parameterName):
+        case let .onGetParameterIndex(parameterName):
             return "Could not get index for '\(parameterName)'"
-        case .onBindParameter(let code, let index, let value):
+        case let .onBindParameter(code, index, value):
             return "Could not bind \(value) to \(index): \(string(for: code))"
         case .onBeginTransactionAfterDeallocating:
             return "Tried to begin a transaction after deallocating"
         case .onExecuteQueryAfterDeallocating:
             return "Tried to execute a query after deallocating"
-        case .onWrite(let result):
+        case let .onWrite(result):
             return "Write returned results: '\(result)'"
-        case .onGetColumnType(let type):
+        case let .onGetColumnType(type):
             return "Invalid column type: \(type)"
-        case .onStep(let code, let sql):
+        case let .onStep(code, sql):
             return "Could not execute SQL '\(sql)': \(string(for: code))"
-        case .onGetColumnInTable(let error):
+        case let .onGetColumnInTable(error):
             return "Could not get column in table: \(error)"
-        case .onGetIndexInTable(let error):
+        case let .onGetIndexInTable(error):
             return "Could not get index in table: \(error)"
         case .onGetSQL:
             return "Could not get SQL for prepared statement"
-        case .onInvalidTableName(let tableName):
+        case let .onInvalidTableName(tableName):
             return "'\(tableName)' is not a valid table name"
-        case .onDecodingRow(let valueName):
+        case let .onDecodingRow(valueName):
             return "Could not decode value for '\(valueName)'"
-        case .onInvalidDecodingType(let typeDescription):
+        case let .onInvalidDecodingType(typeDescription):
             return "Could not decode value of type '\(typeDescription)'"
         case .onInvalidSelectStatementColumnCount:
             return "A SELECT statement must contain at least one result column"

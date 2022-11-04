@@ -14,10 +14,10 @@ public final class SQLiteEncoder {
         _database = database
     }
 
-    public func encode<T: Encodable>(_ value: T, using sql: SQL) throws {
+    public func encode(_ value: some Encodable, using sql: SQL) throws {
         let encoder = _SQLiteEncoder()
 
-        if let array = value as? Array<Encodable> {
+        if let array = value as? [Encodable] {
             do {
                 try _database.inTransaction { db in
                     try array.forEach { (element: Encodable) in
@@ -28,7 +28,7 @@ public final class SQLiteEncoder {
             } catch {
                 throw SQLiteEncoder.Error.transactionFailed
             }
-        } else if let dictionary = value as? Dictionary<AnyHashable, Encodable> {
+        } else if let dictionary = value as? [AnyHashable: Encodable] {
             throw SQLiteEncoder.Error.invalidType(dictionary)
         } else {
             try value.encode(to: encoder)
@@ -38,14 +38,16 @@ public final class SQLiteEncoder {
 }
 
 private class _SQLiteEncoder: Swift.Encoder {
-    var codingPath: Array<CodingKey> = []
-    var userInfo: [CodingUserInfoKey : Any] = [:]
+    var codingPath: [CodingKey] = []
+    var userInfo: [CodingUserInfoKey: Any] = [:]
 
-    var encodedArguments: SQLiteArguments { return _storage.arguments }
+    var encodedArguments: SQLiteArguments { _storage.arguments }
 
     private let _storage = _KeyedStorage()
 
-    func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key: CodingKey {
+    func container<Key>(keyedBy _: Key.Type) -> KeyedEncodingContainer<Key>
+        where Key: CodingKey
+    {
         _storage.reset()
         return KeyedEncodingContainer(_KeyedContainer<Key>(_storage))
     }
@@ -61,7 +63,7 @@ private class _SQLiteEncoder: Swift.Encoder {
 
 private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
     typealias Key = K
-    let codingPath: Array<CodingKey> = []
+    let codingPath: [CodingKey] = []
 
     private var _storage: _KeyedStorage
 
@@ -147,7 +149,7 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
         _storage[key.stringValue] = .text(value.uuidString)
     }
 
-    mutating func encode<T>(_ value: T, forKey key: K) throws where T : Encodable {
+    mutating func encode(_ value: some Encodable, forKey key: K) throws {
         if let data = value as? Data {
             try encode(data, forKey: key)
         } else if let date = value as? Date {
@@ -165,11 +167,14 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
         }
     }
 
-    mutating func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: K) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
+    mutating func nestedContainer<NestedKey>(
+        keyedBy _: NestedKey.Type,
+        forKey _: K
+    ) -> KeyedEncodingContainer<NestedKey> where NestedKey: CodingKey {
         fatalError("_KeyedContainer does not support nested containers.")
     }
 
-    mutating func nestedUnkeyedContainer(forKey key: K) -> UnkeyedEncodingContainer {
+    mutating func nestedUnkeyedContainer(forKey _: K) -> UnkeyedEncodingContainer {
         fatalError("_KeyedContainer does not support nested containers.")
     }
 
@@ -177,7 +182,7 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
         fatalError("_KeyedContainer does not support nested containers.")
     }
 
-    mutating func superEncoder(forKey key: K) -> Swift.Encoder {
+    mutating func superEncoder(forKey _: K) -> Swift.Encoder {
         fatalError("_KeyedContainer does not support nested containers.")
     }
 }
@@ -185,7 +190,7 @@ private struct _KeyedContainer<K: CodingKey>: KeyedEncodingContainerProtocol {
 private class _KeyedStorage {
     private var _elements = SQLiteArguments()
 
-    var arguments: SQLiteArguments { return _elements }
+    var arguments: SQLiteArguments { _elements }
 
     func reset() {
         _elements.removeAll(keepingCapacity: true)
@@ -193,7 +198,7 @@ private class _KeyedStorage {
 
     subscript(key: String) -> SQLiteValue? {
         get {
-            return _elements[key]
+            _elements[key]
         }
         set {
             _elements[key] = newValue
@@ -204,10 +209,10 @@ private class _KeyedStorage {
 private let jsonEncoder: JSONEncoder = {
     let encoder = JSONEncoder()
     encoder.dataEncodingStrategy = .base64
-    encoder.dateEncodingStrategy = .custom({ (date, encoder) throws in
+    encoder.dateEncodingStrategy = .custom { date, encoder throws in
         let dateAsString = PreciseDateFormatter.string(from: date)
         var container = encoder.singleValueContainer()
         try container.encode(dateAsString)
-    })
+    }
     return encoder
 }()

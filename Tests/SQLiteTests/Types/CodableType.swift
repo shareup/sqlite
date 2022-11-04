@@ -40,7 +40,7 @@ extension CodableType {
 
 extension CodableType {
     static var createTable: String {
-        return """
+        """
         CREATE TABLE codable_types (
             id INTEGER UNIQUE NOT NULL,
             uuid TEXT NOT NULL,
@@ -55,7 +55,7 @@ extension CodableType {
     }
 
     static var insert: String {
-        return """
+        """
         INSERT INTO codable_types VALUES (
             :id,
             :uuid,
@@ -70,7 +70,7 @@ extension CodableType {
     }
 
     static var upsert: String {
-        return """
+        """
         INSERT OR REPLACE INTO codable_types VALUES (
             :id,
             :uuid,
@@ -85,10 +85,10 @@ extension CodableType {
     }
 
     static var getAll: String {
-        return "SELECT * FROM codable_types ORDER BY id;"
+        "SELECT * FROM codable_types ORDER BY id;"
     }
 
     static var getByID: String {
-        return "SELECT * FROM codable_types WHERE id=:id;"
+        "SELECT * FROM codable_types WHERE id=:id;"
     }
 }

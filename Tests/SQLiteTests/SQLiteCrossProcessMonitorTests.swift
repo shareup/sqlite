@@ -1,13 +1,13 @@
-import XCTest
 import CombineTestExtensions
 @testable import SQLite
+import XCTest
 
-class SQLiteCrossProcessMonitorTests: XCTestCase {
+final class SQLiteCrossProcessMonitorTests: XCTestCase {
     func testCanNotOpenASharedInMemoryDatabase() throws {
         XCTAssertThrowsError(
             try SQLiteDatabase.makeShared(path: ":memory:"),
             "Shared in-memory databases can't be created"
-        ) { (error) in
+        ) { error in
             guard case let .onInvalidPath(path) = (error as! SQLiteError)
             else { return XCTFail() }
             XCTAssertEqual(":memory:", path)
@@ -15,7 +15,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
     }
 
     func testCanCreateSharedDatabase() throws {
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let dbPath = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase.makeShared(path: dbPath)
             try db.write(createTable)
@@ -25,7 +25,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
     }
 
     func testIsNotifiedOfChangeFromDifferentConnection() throws {
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let dbPath = directory.appendingPathComponent("test.db").path
 
             let db1 = try SQLiteDatabase.makeShared(path: dbPath)
@@ -49,14 +49,14 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             )
 
             wait(for: [ex1, ex2], timeout: 4) // Coordinated writes can be very slow
-            
+
             try db1.close()
             try db2.close()
         }
     }
 
     func testIsNotNotifiedOfChangeFromSameConnection() throws {
-        try Sandbox.execute { (directory) in
+        try Sandbox.execute { directory in
             let dbPath = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: dbPath)
             try db.write(createTable)
@@ -72,7 +72,7 @@ class SQLiteCrossProcessMonitorTests: XCTestCase {
             let sub = db
                 .publisher(Test.self, getAll, tables: ["test"])
                 .sink(
-                    receiveCompletion: { _ in  },
+                    receiveCompletion: { _ in },
                     receiveValue: { rows in
                         guard !expected.isEmpty else {
                             duplicateEx.fulfill()

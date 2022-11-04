@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 import Synchronized
 
 enum SQLiteDatabaseChange {
@@ -69,16 +69,16 @@ final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
 
 private extension SQLiteDatabaseChangePublisher {
     func createHooks() {
-        guard let database = self.database else { return }
+        guard let database else { return }
 
         SQLiteQueue.sync {
-            database.createUpdateHandler { [weak self] (table) in
-                guard let self = self else { return }
+            database.createUpdateHandler { [weak self] table in
+                guard let self else { return }
                 self.updatedTables.insert(table)
             }
-            
+
             database.createCommitHandler { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 let tables = self.updatedTables
                 self.updatedTables.removeAll()
                 // Some SQL statements do not trigger the update handler,
@@ -92,14 +92,14 @@ private extension SQLiteDatabaseChangePublisher {
             }
 
             database.createRollbackHandler { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 self.updatedTables.removeAll()
             }
         }
     }
 
     func removeHooks() {
-        guard let database = self.database else { return }
+        guard let database else { return }
 
         SQLiteQueue.sync {
             database.removeUpdateHandler()
@@ -131,12 +131,13 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
         let sub = changeTrackerSubject
             .throttle(
                 for: .seconds(1),
-                scheduler: RunLoop.main, // using `queue` breaks tests because it doesn't have a `RunLoop`
+                scheduler: RunLoop.main,
+                // using `queue` breaks tests because it doesn't have a `RunLoop`
                 latest: true
             )
             .receive(on: queue)
             .sink { [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 guard let url = self.changeTrackerURL else { return }
 
                 let coordinator = NSFileCoordinator(filePresenter: self)
@@ -147,11 +148,11 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
                     byAccessor: self.touch
                 )
             }
-        self.changeTrackerSubscription = sub
+        changeTrackerSubscription = sub
     }
 
     private func notifyOtherProcesses() {
-        self.changeTrackerSubject.send(())
+        changeTrackerSubject.send(())
     }
 
     private func notifyDownstreamSubscribersAsync(_ value: Output) {
@@ -164,8 +165,8 @@ extension SQLiteDatabaseChangePublisher: NSFilePresenter {
     }
 
     private var touch: (URL?) -> Void {
-        { [id] (url) in
-            guard let url = url else { return }
+        { [id] url in
+            guard let url else { return }
             try? id.write(to: url, atomically: true, encoding: .utf8)
         }
     }
