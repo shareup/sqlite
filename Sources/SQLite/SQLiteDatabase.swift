@@ -438,12 +438,12 @@ public extension SQLiteDatabase {
 
 // MARK: - Trigger updates for observers
 
-extension SQLiteDatabase {
-    public func touch(_ tableName: String) {
+public extension SQLiteDatabase {
+    func touch(_ tableName: String) {
         touch([tableName])
     }
 
-    public func touch(_ tableNames: [String] = []) {
+    func touch(_ tableNames: [String] = []) {
         guard let actualTableNames = try? tables() else { return }
         let tableNamesToUpdate = Set(tableNames).intersection(actualTableNames)
         SQLiteQueue.sync {
