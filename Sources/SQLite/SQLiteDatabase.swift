@@ -89,9 +89,10 @@ public final class SQLiteDatabase {
     }
 }
 
-// MARK: - Asynchronous queries
+// MARK: - Asynchronous queries - deprecated
 
 public extension SQLiteDatabase {
+    @available(*, deprecated, message: "Use Swift Concurrency")
     func inTransactionPublisher<T>(
         _ block: @escaping (SQLiteDatabase) throws -> T
     ) -> AnyPublisher<T, SQLiteError> {
@@ -115,6 +116,7 @@ public extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
+    @available(*, deprecated, message: "Use Swift Concurrency")
     func writePublisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
@@ -144,6 +146,7 @@ public extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
+    @available(*, deprecated, message: "Use Swift Concurrency")
     func readPublisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
@@ -165,6 +168,7 @@ public extension SQLiteDatabase {
         .eraseToAnyPublisher()
     }
 
+    @available(*, deprecated, message: "Use Swift Concurrency")
     func readPublisher<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
@@ -179,6 +183,91 @@ public extension SQLiteDatabase {
                 }
             }
             .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Asynchronous queries
+
+public extension SQLiteDatabase {
+    func inTransaction<T>(
+        _ block: @escaping (SQLiteDatabase) throws -> T
+    ) async throws -> T {
+        try await withUnsafeThrowingContinuation { cont in
+            SQLiteQueue.async { [self] in
+                do {
+                    try Task.checkCancellation()
+                    let result = try self.inTransaction(block)
+                    cont.resume(returning: result)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func write(_ sql: SQL, arguments: SQLiteArguments = [:]) async throws {
+        try await withUnsafeThrowingContinuation { cont in
+            SQLiteQueue.async { [self] in
+                do {
+                    try Task.checkCancellation()
+                    try self.write(sql, arguments: arguments)
+                    cont.resume()
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func read(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:]
+    ) async throws -> [SQLiteRow] {
+        try await withUnsafeThrowingContinuation { cont in
+            SQLiteQueue.async { [self] in
+                do {
+                    try Task.checkCancellation()
+                    let result = try self.read(sql, arguments: arguments)
+                    try Task.checkCancellation()
+                    cont.resume(returning: result)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func read<T: SQLiteTransformable>(
+        _ sql: SQL,
+        arguments: SQLiteArguments = [:]
+    ) async throws -> [T] {
+        try await withUnsafeThrowingContinuation { cont in
+            SQLiteQueue.async { [self] in
+                do {
+                    try Task.checkCancellation()
+                    let result: [T] = try self.read(sql, arguments: arguments)
+                    try Task.checkCancellation()
+                    cont.resume(returning: result)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    @discardableResult
+    func execute(raw sql: SQL) async throws -> [SQLiteRow] {
+        try await withUnsafeThrowingContinuation { cont in
+            SQLiteQueue.async { [self] in
+                do {
+                    try Task.checkCancellation()
+                    let result = try self.execute(raw: sql)
+                    cont.resume(returning: result)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
     }
 }
 
@@ -347,6 +436,22 @@ public extension SQLiteDatabase {
     }
 }
 
+// MARK: - Trigger updates for observers
+
+public extension SQLiteDatabase {
+    func touch(_ tableName: String) {
+        touch([tableName])
+    }
+
+    func touch(_ tableNames: [String] = []) {
+        guard let actualTableNames = try? tables() else { return }
+        let tableNamesToUpdate = Set(tableNames).intersection(actualTableNames)
+        SQLiteQueue.sync {
+            _changePublisher.publishChanges(for: tableNamesToUpdate)
+        }
+    }
+}
+
 // MARK: - Equatable
 
 extension SQLiteDatabase: Equatable {
@@ -359,11 +464,20 @@ extension SQLiteDatabase: Equatable {
 
 public extension SQLiteDatabase {
     var supportsJSON: Bool {
-        isCompileOptionEnabled("ENABLE_JSON1")
+        let isEnabled = isCompileOptionEnabled("SQLITE_ENABLE_JSON1")
+
+        guard let version = try? SQLiteVersion(self) else { return isEnabled }
+
+        // https://sqlite.org/compile.html#enable_json1
+        return version >= SQLiteVersion(major: 3, minor: 38, patch: 0) || isEnabled
+    }
+
+    var supportsPreupdateHook: Bool {
+        isCompileOptionEnabled("SQLITE_ENABLE_PREUPDATE_HOOK")
     }
 
     func isCompileOptionEnabled(_ name: String) -> Bool {
-        sqlite3_compileoption_used(name) == 1
+        sqlite3_compileoption_used(name) == Int32(1)
     }
 }
 

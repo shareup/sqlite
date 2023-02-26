@@ -5,6 +5,10 @@ struct SQLiteVersion: Comparable {
     let minor: Int
     let patch: Int
 
+    init(_ database: SQLiteDatabase) throws {
+        try self.init(rows: database.execute(raw: Self.selectVersion))
+    }
+
     init(major: Int, minor: Int, patch: Int) {
         self.major = major
         self.minor = minor

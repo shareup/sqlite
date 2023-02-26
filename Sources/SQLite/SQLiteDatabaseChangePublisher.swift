@@ -60,6 +60,13 @@ final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
         downstreamSubject.send(.close)
     }
 
+    func publishChanges(for tables: Set<String>) {
+        precondition(SQLiteQueue.isCurrentQueue)
+        notifyDownstreamSubscribersAsync(
+            tables.isEmpty ? .updateAllTables : .updateTables(tables)
+        )
+    }
+
     func receive<S: Subscriber>(
         subscriber: S
     ) where Failure == S.Failure, Output == S.Input {

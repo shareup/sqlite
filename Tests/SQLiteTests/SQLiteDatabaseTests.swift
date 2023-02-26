@@ -110,6 +110,10 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(.incremental, database.autoVacuumMode)
     }
 
+    func testSupportsPreupdateHook() throws {
+        XCTAssertTrue(database.supportsPreupdateHook)
+    }
+
     func testIncrementalVacuumDoesNotThrowIfModeIsNotIncremental() throws {
         XCTAssertEqual(.none, database.autoVacuumMode)
         try database.incrementalVacuum()
@@ -243,6 +247,18 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
+    func testInsertAndFetchBlobWhenAsync() async throws {
+        let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
+
+        let output = try await database.inTransaction { db -> [SQLiteRow] in
+            try db.execute(raw: self._createTableWithBlob)
+            try db.write(self._insertIDAndData, arguments: one)
+            return try db.read(self._selectWhereID, arguments: ["id": .integer(123)])
+        }
+
+        XCTAssertEqual([one], output)
+    }
+
     func testInsertAndFetchBlobWithPublisher() throws {
         let one: SQLiteArguments = ["id": .integer(123), "data": .data(_textData)]
 
@@ -331,6 +347,26 @@ final class SQLiteDatabaseTests: XCTestCase {
                 XCTAssertEqual(0, fetched.count)
             }
         }
+    }
+
+    func testInsertAndFetchSQLiteTransformableWhenAsync() async throws {
+        let one = Transformable(name: "one", age: 1, jobTitle: "boss")
+        let two = Transformable(name: "two", age: 2)
+
+        let output = try await database.inTransaction { db -> [Transformable] in
+            try db.execute(raw: Transformable.createTable)
+            try db.write(Transformable.insert, arguments: one.asArguments)
+            try db.write(Transformable.insert, arguments: two.asArguments)
+
+            return try ["two", "three", "one"].flatMap { name in
+                try db.read(
+                    Transformable.fetchByName,
+                    arguments: ["name": .text(name)]
+                )
+            }
+        }
+
+        XCTAssertEqual([two, one], output)
     }
 
     func testInsertAndFetchSQLiteTransformableWithPublisher() throws {
@@ -561,6 +597,31 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(one, fetched[0])
     }
 
+    func testInvalidInsertOfBlobInTransactionRollsBackWhenAsync() async throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        do {
+            let output = try await database.inTransaction { db in
+                try db.execute(raw: self._createTableWithBlob)
+                try db.write(self._insertIDAndData, arguments: one)
+                try db.write(self._insertIDAndData, arguments: two) // throws
+                return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+            }
+            XCTFail("Should not have received \(output)")
+        } catch {
+            guard let sqliteError = error as? SQLiteError,
+                  case let .onStep(step, message) = sqliteError
+            else {
+                return XCTFail("Should have recieved SQLiteError, not \(error)")
+            }
+            XCTAssertEqual(19, step)
+            XCTAssertEqual("INSERT INTO test VALUES (:id, :data);", message)
+        }
+
+        XCTAssertEqual([], try database.tables())
+    }
+
     func testInvalidInsertOfBlobInTransactionRollsBackWithPublisher() throws {
         let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
         let two: SQLiteArguments = ["id": .integer(2)]
@@ -576,6 +637,36 @@ final class SQLiteDatabaseTests: XCTestCase {
         wait(for: [ex], timeout: 2)
 
         XCTAssertEqual([], try database.tables())
+    }
+
+    func testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWhenAsync() async throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        try await database.execute(raw: _createTableWithBlob)
+        try await database.write(_insertIDAndData, arguments: one)
+
+        do {
+            let output = try await database.inTransaction { db in
+                try db.write(self._insertIDAndData, arguments: two) // throws
+                return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+            }
+            XCTFail("Should not have received \(output)")
+        } catch {
+            guard let sqliteError = error as? SQLiteError,
+                  case let .onStep(step, message) = sqliteError
+            else {
+                return XCTFail("Should have recieved SQLiteError, not \(error)")
+            }
+            XCTAssertEqual(19, step)
+            XCTAssertEqual("INSERT INTO test VALUES (:id, :data);", message)
+        }
+
+        let output = try await database.read(
+            _selectWhereID,
+            arguments: ["id": .integer(1)]
+        )
+        XCTAssertEqual([one], output)
     }
 
     func testInvalidInsertOfBlobInTransactionOnlyRollsBackTransactionWithPublisher() throws {
@@ -619,6 +710,32 @@ final class SQLiteDatabaseTests: XCTestCase {
             XCTAssertTrue(db.hasOpenTransactions)
         }
         XCTAssertFalse(database.hasOpenTransactions)
+    }
+
+    func testHasOpenTransactionsWhenAsync() async throws {
+        func arguments(with id: Int) -> SQLiteArguments {
+            ["id": .integer(Int64(id)), "data": .data(_textData)]
+        }
+
+        try await database.execute(raw: _createTableWithBlob)
+
+        XCTAssertFalse(database.hasOpenTransactions)
+
+        let output = try await database.inTransaction { db in
+            XCTAssertTrue(db.hasOpenTransactions)
+
+            try db.write(self._insertIDAndData, arguments: arguments(with: 1))
+            try db.write(self._insertIDAndData, arguments: arguments(with: 2))
+
+            let one = try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
+            let two = try db.read(self._selectWhereID, arguments: ["id": .integer(2)])
+
+            XCTAssertTrue(db.hasOpenTransactions)
+
+            return one + two
+        }
+
+        XCTAssertEqual([arguments(with: 1), arguments(with: 2)], output)
     }
 
     func testHasOpenTransactionsWithPublisher() throws {
