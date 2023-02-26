@@ -358,6 +358,63 @@ final class SQLitePublisherTests: XCTestCase {
 
         XCTAssertEqual(3, publishCount)
     }
+
+    func testTouchPublishesForSpecifiedTables() throws {
+        let peopleEx = database
+            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .expectOutput([[_person1, _person2]], failsOnCompletion: true)
+
+        let petsEx = database
+            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
+            .expectOutput([
+                [_pet1, _pet2],
+                [_pet1, _pet2],
+            ], failsOnCompletion: true)
+
+        database.touch("pets")
+
+        wait(for: [peopleEx, petsEx], timeout: 2)
+    }
+
+    func testTouchPublishesAllTablesWhenNoneAreSpecified() throws {
+        let peopleEx = database
+            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .expectOutput([
+                [_person1, _person2],
+                [_person1, _person2],
+            ], failsOnCompletion: true)
+
+        let petsEx = database
+            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
+            .expectOutput([
+                [_pet1, _pet2],
+                [_pet1, _pet2],
+            ], failsOnCompletion: true)
+
+        database.touch()
+
+        wait(for: [peopleEx, petsEx], timeout: 2)
+    }
+
+    func testTouchPublishesAllTablesWhenInvalidTableNamesAreSpecified() throws {
+        let peopleEx = database
+            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .expectOutput([
+                [_person1, _person2],
+                [_person1, _person2],
+            ], failsOnCompletion: true)
+
+        let petsEx = database
+            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
+            .expectOutput([
+                [_pet1, _pet2],
+                [_pet1, _pet2],
+            ], failsOnCompletion: true)
+
+        database.touch(["not-a-table", "👋"])
+
+        wait(for: [peopleEx, petsEx], timeout: 2)
+    }
 }
 
 extension SQLitePublisherTests {
