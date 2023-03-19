@@ -122,7 +122,7 @@ public extension SQLiteDatabase {
         arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<Void, SQLiteError> {
         let prepareStatement = { [unowned self] () throws -> OpaquePointer in
-            try self.cachedStatement(for: sql)
+            try cachedStatement(for: sql)
         }
 
         let resetStatement = { (statement: OpaquePointer) in
@@ -152,7 +152,7 @@ public extension SQLiteDatabase {
         arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
         let prepareStatement = { [unowned self] () throws -> OpaquePointer in
-            try self.cachedStatement(for: sql)
+            try cachedStatement(for: sql)
         }
 
         let resetStatement = { (statement: OpaquePointer) in
@@ -196,7 +196,7 @@ public extension SQLiteDatabase {
             SQLiteQueue.async { [self] in
                 do {
                     try Task.checkCancellation()
-                    let result = try self.inTransaction(block)
+                    let result = try inTransaction(block)
                     cont.resume(returning: result)
                 } catch {
                     cont.resume(throwing: error)
@@ -210,7 +210,7 @@ public extension SQLiteDatabase {
             SQLiteQueue.async { [self] in
                 do {
                     try Task.checkCancellation()
-                    try self.write(sql, arguments: arguments)
+                    try write(sql, arguments: arguments)
                     cont.resume()
                 } catch {
                     cont.resume(throwing: error)
@@ -227,7 +227,7 @@ public extension SQLiteDatabase {
             SQLiteQueue.async { [self] in
                 do {
                     try Task.checkCancellation()
-                    let result = try self.read(sql, arguments: arguments)
+                    let result = try read(sql, arguments: arguments)
                     try Task.checkCancellation()
                     cont.resume(returning: result)
                 } catch {
@@ -245,7 +245,7 @@ public extension SQLiteDatabase {
             SQLiteQueue.async { [self] in
                 do {
                     try Task.checkCancellation()
-                    let result: [T] = try self.read(sql, arguments: arguments)
+                    let result: [T] = try read(sql, arguments: arguments)
                     try Task.checkCancellation()
                     cont.resume(returning: result)
                 } catch {
@@ -261,7 +261,7 @@ public extension SQLiteDatabase {
             SQLiteQueue.async { [self] in
                 do {
                     try Task.checkCancellation()
-                    let result = try self.execute(raw: sql)
+                    let result = try execute(raw: sql)
                     cont.resume(returning: result)
                 } catch {
                     cont.resume(throwing: error)

@@ -70,14 +70,14 @@ final class SQLiteRowExtensionsTests: XCTestCase {
     func testDoubleValueForKey() throws {
         let values: [String: SQLiteValue] = [
             "zero": .double(0),
-            "positive": .double(12345.12345),
-            "negative": .double(-12345.12345),
+            "positive": .double(12_345.12345),
+            "negative": .double(-12_345.12345),
         ]
 
         let expected: [(String, Double)] = [
             ("zero", 0),
-            ("positive", 12345.12345),
-            ("negative", -12345.12345),
+            ("positive", 12_345.12345),
+            ("negative", -12_345.12345),
         ]
 
         try expected.forEach { key, expectedValue in
@@ -92,14 +92,14 @@ final class SQLiteRowExtensionsTests: XCTestCase {
     func testIntValueForKey() throws {
         let values: [String: SQLiteValue] = [
             "zero": .integer(0),
-            "positive": .integer(12345),
-            "negative": .integer(-12345),
+            "positive": .integer(12_345),
+            "negative": .integer(-12_345),
         ]
 
         let expected: [(String, Int)] = [
             ("zero", 0),
-            ("positive", 12345),
-            ("negative", -12345),
+            ("positive", 12_345),
+            ("negative", -12_345),
         ]
 
         try expected.forEach { key, expectedValue in
@@ -114,14 +114,14 @@ final class SQLiteRowExtensionsTests: XCTestCase {
     func testInt64ValueForKey() throws {
         let values: [String: SQLiteValue] = [
             "zero": .integer(0),
-            "positive": .integer(12345),
-            "negative": .integer(-12345),
+            "positive": .integer(12_345),
+            "negative": .integer(-12_345),
         ]
 
         let expected: [(String, Int64)] = [
             ("zero", 0),
-            ("positive", 12345),
-            ("negative", -12345),
+            ("positive", 12_345),
+            ("negative", -12_345),
         ]
 
         try expected.forEach { key, expectedValue in
