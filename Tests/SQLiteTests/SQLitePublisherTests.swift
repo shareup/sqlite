@@ -13,9 +13,14 @@ final class SQLitePublisherTests: XCTestCase {
 
         try database.execute(raw: Person.createTable)
         try database.execute(raw: Pet.createTable)
-        let encoder = SQLiteEncoder(database)
-        try encoder.encode([_person1, _person2], using: Person.insert)
-        try encoder.encode([_pet1, _pet2], using: Pet.insert)
+        
+        try [_person1, _person2].forEach { person in
+            try database.write(Person.insert, arguments: person.asArguments)
+        }
+        
+        try [_pet1, _pet2].forEach { pet in
+            try database.write(Pet.insert, arguments: pet.asArguments)
+        }
     }
 
     override func tearDownWithError() throws {
@@ -69,8 +74,13 @@ final class SQLitePublisherTests: XCTestCase {
 
             let db = try SQLiteDatabase(path: path)
             try db.execute(raw: Person.createTable)
-            let encoder = SQLiteEncoder(db)
-            try encoder.encode([_person1, _person2], using: Person.insert)
+            
+            try [_person1, _person2].forEach { person in
+                try db.write(
+                    Person.insert,
+                    arguments: person.asArguments
+                )
+            }
 
             try db.close()
 
