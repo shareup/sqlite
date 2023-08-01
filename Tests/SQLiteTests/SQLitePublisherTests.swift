@@ -25,7 +25,7 @@ final class SQLitePublisherTests: XCTestCase {
 
     override func tearDownWithError() throws {
         try super.tearDownWithError()
-        try database.close()
+        database = nil
     }
 
     func testReceivesCompletionWithErrorGivenInvalidSQL() throws {
@@ -38,7 +38,7 @@ final class SQLitePublisherTests: XCTestCase {
         wait(for: [ex], timeout: 0.5)
     }
 
-    func testClosingAndReopeningDatabase() throws {
+    func testSuspendingAndResumingDatabase() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
@@ -55,18 +55,16 @@ final class SQLitePublisherTests: XCTestCase {
 
             try db.write(Person.insert, arguments: _person1.asArguments)
 
-            try db.close()
-            try db.reopen()
+            db.suspend()
+            db.resume()
 
             try db.write(Person.insert, arguments: _person2.asArguments)
 
             wait(for: [ex], timeout: 2)
-
-            try db.close()
         }
     }
 
-    func testRetryingWhenDatabaseIsClosed() throws {
+    func testRetryingWhenDatabaseIsSuspended() throws {
         let scheduler = DispatchQueue.main
 
         try Sandbox.execute { directory in
@@ -82,7 +80,7 @@ final class SQLitePublisherTests: XCTestCase {
                 )
             }
 
-            try db.close()
+            db.suspend()
 
             let failureEx = expectation(description: "Should have failed twice")
             failureEx.expectedFulfillmentCount = 2
@@ -108,11 +106,9 @@ final class SQLitePublisherTests: XCTestCase {
                 )
 
             wait(for: [failureEx], timeout: 2)
-            try db.reopen()
+            db.resume()
 
             wait(for: [ex], timeout: 2)
-
-            try db.close()
         }
     }
 

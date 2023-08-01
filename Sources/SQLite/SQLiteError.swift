@@ -2,6 +2,7 @@ import Foundation
 import SQLite3
 
 public enum SQLiteError: Error, Equatable {
+    case databaseError(Int32)
     case databaseIsClosed
     case onInternalError(NSError)
     case onInvalidPath(String)
@@ -34,6 +35,8 @@ public enum SQLiteError: Error, Equatable {
 public extension SQLiteError {
     var code: Int32? {
         switch self {
+        case let .databaseError(code):
+            return code
         case .databaseIsClosed:
             return nil
         case .onInternalError:
@@ -109,6 +112,8 @@ extension SQLiteError: CustomStringConvertible {
         }
 
         switch self {
+        case let .databaseError(code):
+            return "Database error: '\(string(for: code))'"
         case .databaseIsClosed:
             return "Database is closed"
         case let .onInternalError(error):

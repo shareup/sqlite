@@ -10,6 +10,15 @@
       }
     },
     {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "e83f3eb25ef4d5a36a13dbee98f8ac67e24e5c8f",
+        "version" : "6.16.0"
+      }
+    },
+    {
       "identity" : "precise-iso-8601-date-formatter",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shareup/precise-iso-8601-date-formatter.git",

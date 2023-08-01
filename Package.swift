@@ -18,6 +18,10 @@ let package = Package(
             from: "5.0.2"
         ),
         .package(
+            url: "https://github.com/groue/GRDB.swift.git",
+            from: "6.16.0"
+        ),
+        .package(
             url: "https://github.com/shareup/precise-iso-8601-date-formatter.git",
             from: "1.0.3"
         ),
@@ -30,6 +34,7 @@ let package = Package(
         .target(
             name: "SQLite",
             dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
                 .product(
                     name: "PreciseISO8601DateFormatter",
                     package: "precise-iso-8601-date-formatter"
