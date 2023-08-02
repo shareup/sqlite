@@ -1,6 +1,6 @@
 import Foundation
-import SQLite3
 import GRDB
+import SQLite3
 
 public typealias SQLiteArguments = [String: SQLiteValue]
 public typealias SQLiteRow = [String: SQLiteValue]
@@ -13,7 +13,7 @@ public enum SQLiteValue: Hashable {
     case text(String)
 }
 
-extension Dictionary where Key == String, Value == SQLiteValue {
+extension [String: SQLiteValue] {
     init?(row: Row?) {
         guard let row else { return nil }
         var sqliteRow = SQLiteRow()
@@ -21,23 +21,23 @@ extension Dictionary where Key == String, Value == SQLiteValue {
             switch DatabaseValue(value: value)?.storage {
             case .none, .null:
                 sqliteRow[name] = .null
-            
+
             case let .blob(v):
                 sqliteRow[name] = .data(v)
-                
+
             case let .double(v):
                 sqliteRow[name] = .double(v)
-                
+
             case let .int64(v):
                 sqliteRow[name] = .integer(v)
-                
+
             case let .string(v):
                 sqliteRow[name] = .text(v)
             }
         }
         self = sqliteRow
     }
-    
+
     var statementArguments: StatementArguments {
         var output = [String: DatabaseValueConvertible]()
         for (key, value) in self {

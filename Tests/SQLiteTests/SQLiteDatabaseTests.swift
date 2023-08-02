@@ -20,7 +20,7 @@ final class SQLiteDatabaseTests: XCTestCase {
     func testDatabaseIsCreated() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
-            let db = try SQLiteDatabase(path: path)
+            let _ = try SQLiteDatabase(path: path)
             XCTAssertTrue(FileManager().fileExists(atPath: path))
         }
     }
@@ -43,11 +43,14 @@ final class SQLiteDatabaseTests: XCTestCase {
 
     func testSuspendedErrorWhenDatabaseIsSuspended() throws {
         database.suspend()
-        try database.execute(raw: _createTableWithBlob)
         XCTAssertThrowsError(
             try database.execute(raw: _createTableWithBlob),
             "Should have thrown database closed error",
-            { XCTAssertEqual(.databaseIsClosed, $0 as? SQLiteError) }
+            { error in
+                guard case .SQLITE_ABORT = error else {
+                    return XCTFail("'\(error)' should be SQLITE_ABORT")
+                }
+            }
         )
         XCTAssertThrowsError(try database.tables())
     }
@@ -66,7 +69,7 @@ final class SQLiteDatabaseTests: XCTestCase {
             db.suspend()
 
             do { try db.write(_insertIDAndData, arguments: two) }
-            catch SQLiteError.databaseIsClosed {}
+            catch .SQLITE_ABORT {}
 
             db.resume()
             try db.write(_insertIDAndData, arguments: three)
@@ -256,6 +259,12 @@ final class SQLiteDatabaseTests: XCTestCase {
             try db.write(self._insertIDAndData, arguments: one)
             return try db.read(self._selectWhereID, arguments: ["id": .integer(123)])
         }
+        .map { input in
+            Swift.print("$$$ RECEIVED", input)
+            Swift.print("$$$ EXPECTED", one)
+            Swift.print("$$$ EQUALS", input == [one])
+            return input as [SQLiteRow]
+        }
         .expectOutput([one], expectToFinish: true)
 
         wait(for: [ex], timeout: 2)
@@ -385,11 +394,12 @@ final class SQLiteDatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithTypesafeBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
-        XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: two)) { error in
-            if case let SQLiteError.onStep(code, _) = error {
-                XCTAssertEqual(SQLITE_CONSTRAINT, code)
-            } else {
-                XCTFail("'\(error)' should be 'Error.onStep'")
+        XCTAssertThrowsError(
+            try database.write(_insertIDAndData, arguments: two)
+        ) { error in
+            guard case .SQLITE_CONSTRAINT = error else {
+                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+                return
             }
         }
     }
@@ -399,10 +409,9 @@ final class SQLiteDatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertThrowsError(try database.write(_insertIDAndData, arguments: one)) { error in
-            if let error = error as? DatabaseError {
-                XCTAssertEqual(SQLITE_CONSTRAINT, error.resultCode.rawValue)
-            } else {
-                XCTFail("'\(error)' should be 'Error.onStep'")
+            guard case .SQLITE_CONSTRAINT = error else {
+                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+                return
             }
         }
     }
@@ -599,13 +608,10 @@ final class SQLiteDatabaseTests: XCTestCase {
             }
             XCTFail("Should not have received \(output)")
         } catch {
-            guard let sqliteError = error as? SQLiteError,
-                  case let .onStep(step, message) = sqliteError
-            else {
-                return XCTFail("Should have recieved SQLiteError, not \(error)")
+            guard case .SQLITE_CONSTRAINT = error else {
+                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+                return
             }
-            XCTAssertEqual(19, step)
-            XCTAssertEqual("INSERT INTO test VALUES (:id, :data);", message)
         }
 
         XCTAssertEqual([], try database.tables())
@@ -621,7 +627,8 @@ final class SQLiteDatabaseTests: XCTestCase {
             try db.write(self._insertIDAndData, arguments: two) // throws
             return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
         }
-        .expectFailure(.onStep(19, "INSERT INTO test VALUES (:id, :data);"))
+        .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
+        .expectFailure(SQLiteError.SQLITE_CONSTRAINT)
 
         wait(for: [ex], timeout: 2)
 
@@ -642,13 +649,10 @@ final class SQLiteDatabaseTests: XCTestCase {
             }
             XCTFail("Should not have received \(output)")
         } catch {
-            guard let sqliteError = error as? SQLiteError,
-                  case let .onStep(step, message) = sqliteError
-            else {
-                return XCTFail("Should have recieved SQLiteError, not \(error)")
+            guard case .SQLITE_CONSTRAINT = error else {
+                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+                return
             }
-            XCTAssertEqual(19, step)
-            XCTAssertEqual("INSERT INTO test VALUES (:id, :data);", message)
         }
 
         let output = try await database.read(
@@ -669,7 +673,8 @@ final class SQLiteDatabaseTests: XCTestCase {
             try db.write(self._insertIDAndData, arguments: two) // throws
             return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
         }
-        .expectFailure(.onStep(19, "INSERT INTO test VALUES (:id, :data);"))
+        .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
+        .expectFailure(SQLiteError.SQLITE_CONSTRAINT)
 
         wait(for: [ex], timeout: 2)
 
@@ -694,7 +699,8 @@ final class SQLiteDatabaseTests: XCTestCase {
 //            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 2)))
 //            try db.inTransaction { db in
 //                XCTAssertTrue(db.hasOpenTransactions)
-//                XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 3)))
+//                XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with:
+//                3)))
 //            }
 //            XCTAssertTrue(db.hasOpenTransactions)
 //        }

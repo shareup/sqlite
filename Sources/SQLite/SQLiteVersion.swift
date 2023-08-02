@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import os.log
 
 struct SQLiteVersion: Comparable {
     let major: Int
@@ -15,14 +16,28 @@ struct SQLiteVersion: Comparable {
         self.minor = minor
         self.patch = patch
     }
-    
+
     init(row: Row) throws {
         guard let version = (row["version"] as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        else { throw SQLiteError.onInvalidSQLiteVersion }
-        
+        else {
+            os_log(
+                "version: error=missing version key",
+                log: log,
+                type: .error
+            )
+            throw SQLiteError.SQLITE_ERROR
+        }
+
         let components = version.components(separatedBy: ".").compactMap(Int.init)
-        guard components.count == 3 else { throw SQLiteError.onInvalidSQLiteVersion }
+        guard components.count == 3 else {
+            os_log(
+                "version: error=incorrect number of components",
+                log: log,
+                type: .error
+            )
+            throw SQLiteError.SQLITE_ERROR
+        }
         major = components[0]
         minor = components[1]
         patch = components[2]
@@ -33,10 +48,24 @@ struct SQLiteVersion: Comparable {
               let version = row["version"]?
               .stringValue?
               .trimmingCharacters(in: .whitespacesAndNewlines)
-        else { throw SQLiteError.onInvalidSQLiteVersion }
+        else {
+            os_log(
+                "version: error=missing version key",
+                log: log,
+                type: .error
+            )
+            throw SQLiteError.SQLITE_ERROR
+        }
 
         let components = version.components(separatedBy: ".").compactMap(Int.init)
-        guard components.count == 3 else { throw SQLiteError.onInvalidSQLiteVersion }
+        guard components.count == 3 else {
+            os_log(
+                "version: error=incorrect number of components",
+                log: log,
+                type: .error
+            )
+            throw SQLiteError.SQLITE_ERROR
+        }
         major = components[0]
         minor = components[1]
         patch = components[2]

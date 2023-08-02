@@ -8,9 +8,8 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
             try SQLiteDatabase.makeShared(path: ":memory:"),
             "Shared in-memory databases can't be created"
         ) { error in
-            guard case let .onInvalidPath(path) = (error as! SQLiteError)
+            guard case SQLiteError.SQLITE_IOERR = error
             else { return XCTFail() }
-            XCTAssertEqual(":memory:", path)
         }
     }
 

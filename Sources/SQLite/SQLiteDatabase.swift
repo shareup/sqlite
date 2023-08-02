@@ -1,32 +1,31 @@
 import Combine
 import Foundation
-import SQLite3
 import GRDB
+import os.log
+import SQLite3
 import Synchronized
 
 public final class SQLiteDatabase {
     public static let suspendNotification = GRDB.Database.suspendNotification
     public static let resumeNotification = GRDB.Database.resumeNotification
-    
+
     public let path: String
     internal let sqliteVersion: SQLiteVersion
     private let database: Database
-    
-    private let queue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.name = "app.shareup.sqlite.publisher-queue"
-        queue.maxConcurrentOperationCount = 4
-        queue.underlyingQueue = DispatchQueue.global()
-        return queue
-    }()
 
+    private let queue: DispatchQueue = .init(
+        label: "app.shareup.sqlite.publisher-queue",
+        qos: .default,
+        autoreleaseFrequency: .workItem,
+        target: DispatchQueue.global()
+    )
 
     public static func makeShared(
         path: String,
-        busyTimeout seconds: TimeInterval = 0
+        busyTimeout: TimeInterval = 5
     ) throws -> SQLiteDatabase {
         guard path != ":memory:", let url = URL(string: path)
-        else { throw SQLiteError.onInvalidPath(path) }
+        else { throw SQLiteError.SQLITE_IOERR }
 
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var fileCoordinatorError: NSError?
@@ -40,7 +39,10 @@ public final class SQLiteDatabase {
             error: &fileCoordinatorError
         ) { url in
             do {
-                database = try SQLiteDatabase(path: url.path)
+                database = try SQLiteDatabase(
+                    path: url.path,
+                    busyTimeout: busyTimeout
+                )
             } catch {
                 databaseError = error
             }
@@ -50,28 +52,31 @@ public final class SQLiteDatabase {
               fileCoordinatorError == nil,
               databaseError == nil
         else {
-            let error = String(describing: fileCoordinatorError ?? databaseError)
-            throw SQLiteError.onOpenSharedDatabase(path, error)
+            if let error = (fileCoordinatorError ?? databaseError) {
+                try rethrowAsSQLiteError(error)
+            } else {
+                throw SQLiteError.SQLITE_CANTOPEN
+            }
         }
-        
+
         return db
     }
 
-    public init(path: String = ":memory:") throws {
-        database = try Self.open(at: path, busyTimeout: 1)
+    public init(path: String = ":memory:", busyTimeout: TimeInterval = 5) throws {
+        database = try Self.open(at: path, busyTimeout: busyTimeout)
         self.path = path
         sqliteVersion = try Self.getSQLiteVersion(database)
         try checkIsSQLiteVersionSupported()
         precondition(isForeignKeySupportEnabled)
     }
-    
+
     public func resume() {
         NotificationCenter.default.post(
             name: Self.resumeNotification,
             object: nil
         )
     }
-    
+
     public func suspend() {
         NotificationCenter.default.post(
             name: Self.suspendNotification,
@@ -86,7 +91,7 @@ public extension SQLiteDatabase {
     @available(*, deprecated, message: "Use Swift Concurrency")
     func inTransactionPublisher<T>(
         _ block: @escaping (DatabaseProxy) throws -> T
-    ) -> AnyPublisher<T, SQLiteError> {
+    ) -> AnyPublisher<T, Error> {
         database
             .writer
             .writePublisher(receiveOn: queue) { db in
@@ -105,7 +110,7 @@ public extension SQLiteDatabase {
     func writePublisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
-    ) -> AnyPublisher<Void, SQLiteError> {
+    ) -> AnyPublisher<Void, Error> {
         database
             .writer
             .writePublisher(receiveOn: queue) { db in
@@ -116,7 +121,7 @@ public extension SQLiteDatabase {
                         : arguments.statementArguments
                 )
             }
-            .mapToSQLiteError()
+            .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 
@@ -124,7 +129,7 @@ public extension SQLiteDatabase {
     func readPublisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
-    ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
+    ) -> AnyPublisher<[SQLiteRow], Error> {
         database
             .reader
             .readPublisher(receiveOn: queue) { db in
@@ -136,7 +141,7 @@ public extension SQLiteDatabase {
                         : arguments.statementArguments
                 ).compactMap(SQLiteRow.init(row:))
             }
-            .mapToSQLiteError()
+            .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 
@@ -144,10 +149,10 @@ public extension SQLiteDatabase {
     func readPublisher<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
-    ) -> AnyPublisher<[T], SQLiteError> {
+    ) -> AnyPublisher<[T], Error> {
         readPublisher(sql, arguments: arguments)
             .tryMap { try $0.map { try T(row: $0) } }
-            .mapToSQLiteError()
+            .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 }
@@ -158,24 +163,45 @@ public extension SQLiteDatabase {
     func inTransaction<T>(
         _ block: @escaping (DatabaseProxy) throws -> T
     ) async throws -> T {
-        try await database.writer.write { db in
-            var result: T!
-            try db.inSavepoint {
-                result = try block(.init(db))
-                return .commit
+        do {
+            return try await database.writer.write { db in
+                var result: T!
+                try db.inSavepoint {
+                    result = try block(.init(db))
+                    return .commit
+                }
+                return result
             }
-            return result
+        } catch {
+            os_log(
+                "in-transaction: error=%s",
+                log: log,
+                type: .error,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 
     func write(_ sql: SQL, arguments: SQLiteArguments = [:]) async throws {
-        try await database.writer.write { db in
-            let statement = try db.cachedStatement(sql: sql)
-            try statement.execute(
-                arguments: arguments.isEmpty
-                    ? nil
-                    : arguments.statementArguments
+        do {
+            try await database.writer.write { db in
+                let statement = try db.cachedStatement(sql: sql)
+                try statement.execute(
+                    arguments: arguments.isEmpty
+                        ? nil
+                        : arguments.statementArguments
+                )
+            }
+        } catch {
+            os_log(
+                "write: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
             )
+            try rethrowAsSQLiteError(error)
         }
     }
 
@@ -183,14 +209,25 @@ public extension SQLiteDatabase {
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) async throws -> [SQLiteRow] {
-        try await database.reader.read { db in
-            let statement = try db.cachedStatement(sql: sql)
-            return try Row.fetchAll(
-                statement,
-                arguments: arguments.isEmpty
-                    ? nil
-                    : arguments.statementArguments
-            ).compactMap(SQLiteRow.init(row:))
+        do {
+            return try await database.reader.read { db in
+                let statement = try db.cachedStatement(sql: sql)
+                return try Row.fetchAll(
+                    statement,
+                    arguments: arguments.isEmpty
+                        ? nil
+                        : arguments.statementArguments
+                ).compactMap(SQLiteRow.init(row:))
+            }
+        } catch {
+            os_log(
+                "read: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 
@@ -198,24 +235,46 @@ public extension SQLiteDatabase {
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) async throws -> [T] {
-        try await database.reader.read { db in
-            let statement = try db.cachedStatement(sql: sql)
-            return try Row.fetchAll(
-                statement,
-                arguments: arguments.isEmpty
-                    ? nil
-                    : arguments.statementArguments
+        do {
+            return try await database.reader.read { db in
+                let statement = try db.cachedStatement(sql: sql)
+                return try Row.fetchAll(
+                    statement,
+                    arguments: arguments.isEmpty
+                        ? nil
+                        : arguments.statementArguments
+                )
+                .compactMap(SQLiteRow.init(row:))
+                .map(T.init)
+            }
+        } catch {
+            os_log(
+                "read: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
             )
-            .compactMap(SQLiteRow.init(row:))
-            .map(T.init)
+            try rethrowAsSQLiteError(error)
         }
     }
 
     @discardableResult
     func execute(raw sql: SQL) async throws -> [SQLiteRow] {
-        try await database.writer.write { db in
-            return try Row.fetchAll(db, sql: sql)
-                .compactMap(SQLiteRow.init(row:))
+        do {
+            return try await database.writer.write { db in
+                try Row.fetchAll(db, sql: sql)
+                    .compactMap(SQLiteRow.init(row:))
+            }
+        } catch {
+            os_log(
+                "execute: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 }
@@ -226,13 +285,23 @@ public extension SQLiteDatabase {
     func inTransaction<T>(
         _ block: (DatabaseProxy) throws -> T
     ) throws -> T {
-        try database.writer.write { db in
-            var result: T!
-            try db.inSavepoint {
-                result = try block(.init(db))
-                return .commit
+        do {
+            return try database.writer.write { db in
+                var result: T!
+                try db.inSavepoint {
+                    result = try block(.init(db))
+                    return .commit
+                }
+                return result
             }
-            return result
+        } catch {
+            os_log(
+                "in-transaction: error=%s",
+                log: log,
+                type: .error,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 
@@ -257,10 +326,21 @@ public extension SQLiteDatabase {
 
     @discardableResult
     func execute(raw sql: SQL) throws -> [SQLiteRow] {
-        try database.writer.write { db in
-            let statement = try db.makeStatement(sql: sql)
-            return try Row.fetchAll(statement)
-                .compactMap(SQLiteRow.init(row:))
+        do {
+            return try database.writer.write { db in
+                let statement = try db.makeStatement(sql: sql)
+                return try Row.fetchAll(statement)
+                    .compactMap(SQLiteRow.init(row:))
+            }
+        } catch {
+            os_log(
+                "execute: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 }
@@ -282,7 +362,7 @@ public extension SQLiteDatabase {
                 WHERE m.type='table'
                 AND m.name='\(table)';
             """
-        
+
         return try execute(raw: sql)
             .compactMap { $0["name"]?.stringValue }
     }
@@ -294,8 +374,8 @@ public extension SQLiteDatabase {
     func publisher(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
-        tables: [String] = []
-    ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
+        tables _: [String] = []
+    ) -> AnyPublisher<[SQLiteRow], Error> {
         database.observe(sql, arguments: arguments, queue: queue)
     }
 
@@ -311,22 +391,22 @@ public extension SQLiteDatabase {
         _: T.Type,
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
-        tables: [String] = []
-    ) -> AnyPublisher<[T], SQLiteError> {
+        tables _: [String] = []
+    ) -> AnyPublisher<[T], Error> {
         publisher(
             sql,
             arguments: arguments
-        ) as AnyPublisher<[T], SQLiteError>
+        ) as AnyPublisher<[T], Error>
     }
 
     func publisher<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:],
-        tables: [String] = []
-    ) -> AnyPublisher<[T], SQLiteError> {
+        tables _: [String] = []
+    ) -> AnyPublisher<[T], Error> {
         publisher(sql, arguments: arguments)
             .tryMap { try $0.map { try T(row: $0) } }
-            .mapToSQLiteError()
+            .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 }
@@ -338,7 +418,7 @@ public extension SQLiteDatabase {
         touch([tableName])
     }
 
-    func touch(_ tableNames: [String] = []) {
+    func touch(_: [String] = []) {
         // TODO: Notify this process when another one changes.
     }
 }
@@ -357,7 +437,8 @@ public extension SQLiteDatabase {
     var supportsJSON: Bool {
         let isEnabled = isCompileOptionEnabled("SQLITE_ENABLE_JSON1")
 
-        guard let version = try? SQLiteVersion(self) else { return isEnabled }
+        guard let version = try? SQLiteVersion(self)
+        else { return isEnabled }
 
         // https://sqlite.org/compile.html#enable_json1
         return version >= SQLiteVersion(major: 3, minor: 38, patch: 0) || isEnabled
@@ -453,18 +534,32 @@ public extension SQLiteDatabase {
     }
 
     func vacuum() throws {
-        try database.writer.vacuum()
+        do {
+            try database.writer.vacuum()
+        } catch {
+            os_log(
+                "vacuum: error=%s",
+                log: log,
+                type: .error,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
+        }
     }
 }
 
 extension SQLiteDatabase {
     private func checkIsSQLiteVersionSupported() throws {
         guard sqliteVersion.isSupported else {
-            throw SQLiteError.onUnsupportedSQLiteVersion(
+            os_log(
+                "version: error=unsupported major=%lld minor=%lld patch=%lld",
+                log: log,
+                type: .error,
                 sqliteVersion.major,
                 sqliteVersion.minor,
                 sqliteVersion.patch
             )
+            throw SQLiteError.SQLITE_ERROR
         }
     }
 }
@@ -472,21 +567,25 @@ extension SQLiteDatabase {
 private extension SQLiteDatabase {
     class func open(
         at path: String,
-        busyTimeout: TimeInterval = 1
+        busyTimeout: TimeInterval
     ) throws -> Database {
-        guard path != ":memory:" else {
-            let config = Configuration()
-            let queue = try DatabaseQueue(
-                path: path,
-                configuration: config
-            )
-            return .queue(queue)
-        }
-        
         var config = Configuration()
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.foreignKeysEnabled = true
+
+        guard path != ":memory:" else {
+            do {
+                let queue = try DatabaseQueue(
+                    path: path,
+                    configuration: config
+                )
+                return .queue(queue)
+            } catch {
+                try rethrowAsSQLiteError(error)
+            }
+        }
+
         config.prepareDatabase { db in
             if !db.configuration.readonly {
                 var flag: CInt = 1
@@ -499,15 +598,19 @@ private extension SQLiteDatabase {
                     )
                 }
                 guard code == SQLITE_OK else {
-                    throw SQLiteError.onOpen(code, "Could not persist WAL")
+                    throw SQLiteError.SQLITE_CANTOPEN
                 }
             }
         }
-        
-        let pool = try DatabasePool(path: path, configuration: config)
-        return .pool(pool)
+
+        do {
+            let pool = try DatabasePool(path: path, configuration: config)
+            return .pool(pool)
+        } catch {
+            try rethrowAsSQLiteError(error)
+        }
     }
-    
+
     class func getSQLiteVersion(_ db: Database) throws -> SQLiteVersion {
         let rows = try db.read(SQLiteVersion.selectVersion)
         return try SQLiteVersion(rows: rows)
@@ -516,18 +619,18 @@ private extension SQLiteDatabase {
 
 public struct DatabaseProxy {
     private let db: GRDB.Database
-   
+
     init(_ database: GRDB.Database) {
         db = database
     }
-    
+
     public func read(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws -> [SQLiteRow] {
         try db.read(sql, arguments: arguments)
     }
-    
+
     public func read<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
@@ -535,14 +638,14 @@ public struct DatabaseProxy {
         try read(sql, arguments: arguments)
             .map(T.init(row:))
     }
-    
+
     public func write(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws {
         try db.write(sql, arguments: arguments)
     }
-    
+
     @discardableResult
     public func execute(raw: SQL) throws -> [SQLiteRow] {
         try db.execute(raw: raw)
@@ -552,52 +655,64 @@ public struct DatabaseProxy {
 private enum Database {
     case pool(DatabasePool)
     case queue(DatabaseQueue)
-    
+
     var reader: AnyDatabaseReader {
         switch self {
         case let .pool(pool): return AnyDatabaseReader(pool)
         case let .queue(queue): return AnyDatabaseReader(queue)
         }
     }
-    
+
     var writer: AnyDatabaseWriter {
         switch self {
         case let .pool(pool): return AnyDatabaseWriter(pool)
         case let .queue(queue): return AnyDatabaseWriter(queue)
         }
     }
-    
+
     func read(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws -> [SQLiteRow] {
-        try reader.read { try $0.read(sql, arguments: arguments) }
+        do {
+            return try reader.read { db in
+                try db.read(sql, arguments: arguments)
+            }
+        } catch {
+            try rethrowAsSQLiteError(error)
+        }
     }
-    
+
     func write(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws {
-        try writer.write { try $0.write(sql, arguments: arguments) }
+        do {
+            try writer.write { db in
+                try db.write(sql, arguments: arguments)
+            }
+        } catch {
+            try rethrowAsSQLiteError(error)
+        }
     }
-    
+
     func observe(
         _ sql: SQL,
         arguments: SQLiteArguments,
-        queue: OperationQueue
-    ) -> AnyPublisher<[SQLiteRow], SQLiteError> {
+        queue: DispatchQueue
+    ) -> AnyPublisher<[SQLiteRow], Error> {
         let request = SQLRequest(
             sql: sql,
             arguments: arguments.statementArguments
         )
-        
+
         return DatabaseRegionObservation(tracking: [request])
-            .publisher(in: self.writer)
+            .publisher(in: writer)
             .receive(on: queue)
             .tryMap { _ in
-                try self.read(sql, arguments: arguments)
+                try read(sql, arguments: arguments)
             }
-            .mapToSQLiteError()
+            .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 }
@@ -607,47 +722,63 @@ private extension GRDB.Database {
         _ sql: SQL,
         arguments: SQLiteArguments
     ) throws -> [SQLiteRow] {
-        let statement = try cachedStatement(sql: sql)
-        return try Row.fetchAll(
-            statement,
-            arguments: arguments.isEmpty
-                ? nil
-                : arguments.statementArguments
-        ).compactMap(SQLiteRow.init(row:))
+        do {
+            let statement = try cachedStatement(sql: sql)
+            return try Row.fetchAll(
+                statement,
+                arguments: arguments.isEmpty
+                    ? nil
+                    : arguments.statementArguments
+            ).compactMap(SQLiteRow.init(row:))
+        } catch {
+            os_log(
+                "read: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
+        }
     }
-    
+
     func write(
         _ sql: SQL,
         arguments: SQLiteArguments
     ) throws {
-        let statement = try cachedStatement(sql: sql)
-        try statement.execute(
-            arguments: arguments.isEmpty
-                ? nil
-                : arguments.statementArguments
-        )
+        do {
+            let statement = try cachedStatement(sql: sql)
+            try statement.execute(
+                arguments: arguments.isEmpty
+                    ? nil
+                    : arguments.statementArguments
+            )
+        } catch {
+            os_log(
+                "write: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
+        }
     }
-    
+
     @discardableResult
     func execute(raw sql: SQL) throws -> [SQLiteRow] {
-        try Row.fetchAll(self, sql: sql)
-            .compactMap(SQLiteRow.init(row:))
-    }
-}
-
-private extension Publisher where Failure: Error {
-    func mapToSQLiteError() -> Publishers.MapError<Self, SQLiteError> {
-        mapError { error in
-            switch error {
-            case let err as SQLiteError:
-                return err
-                
-            case let err as DatabaseError:
-                return .databaseError(err.resultCode.rawValue)
-                
-            default:
-                return .onInternalError(error as NSError)
-            }
+        do {
+            return try Row.fetchAll(self, sql: sql)
+                .compactMap(SQLiteRow.init(row:))
+        } catch {
+            os_log(
+                "execute: sql=%s error=%s",
+                log: log,
+                type: .error,
+                sql,
+                String(describing: error)
+            )
+            try rethrowAsSQLiteError(error)
         }
     }
 }

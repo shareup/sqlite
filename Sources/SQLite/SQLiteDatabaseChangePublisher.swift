@@ -1,16 +1,16 @@
-//import Combine
-//import Foundation
-//import Synchronized
+// import Combine
+// import Foundation
+// import Synchronized
 //
-//enum SQLiteDatabaseChange {
+// enum SQLiteDatabaseChange {
 //    case open
 //    case close
 //    case updateTables(Set<String>)
 //    case updateAllTables
 //    case crossProcessUpdate
-//}
+// }
 //
-//final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
+// final class SQLiteDatabaseChangePublisher: NSObject, Publisher {
 //    typealias Output = SQLiteDatabaseChange
 //    typealias Failure = Never
 //
@@ -72,9 +72,9 @@
 //    ) where Failure == S.Failure, Output == S.Input {
 //        downstreamSubject.receive(subscriber: subscriber)
 //    }
-//}
+// }
 //
-//private extension SQLiteDatabaseChangePublisher {
+// private extension SQLiteDatabaseChangePublisher {
 //    func createHooks() {
 //        guard let database else { return }
 //
@@ -114,9 +114,9 @@
 //            database.removeRollbackHandler()
 //        }
 //    }
-//}
+// }
 //
-//extension SQLiteDatabaseChangePublisher: NSFilePresenter {
+// extension SQLiteDatabaseChangePublisher: NSFilePresenter {
 //    var presentedItemURL: URL? { changeTrackerURL }
 //    var presentedItemOperationQueue: OperationQueue { queue }
 //
@@ -177,11 +177,11 @@
 //            try? id.write(to: url, atomically: true, encoding: .utf8)
 //        }
 //    }
-//}
+// }
 //
-//private extension SQLiteDatabase {
+// private extension SQLiteDatabase {
 //    var changeTrackerURL: URL? {
 //        guard path != ":memory:" else { return nil }
 //        return URL(fileURLWithPath: path.appending("-change-tracker"), isDirectory: false)
 //    }
-//}
+// }
