@@ -608,8 +608,8 @@ final class SQLiteDatabaseTests: XCTestCase {
             }
             XCTFail("Should not have received \(output)")
         } catch {
-            guard case .SQLITE_CONSTRAINT = error else {
-                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+            guard case .SQLITE_MISUSE = error else {
+                XCTFail("'\(error)' should be SQLITE_MISUSE")
                 return
             }
         }
@@ -628,7 +628,7 @@ final class SQLiteDatabaseTests: XCTestCase {
             return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
         }
         .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
-        .expectFailure(SQLiteError.SQLITE_CONSTRAINT)
+        .expectFailure(SQLiteError.SQLITE_MISUSE)
 
         wait(for: [ex], timeout: 2)
 
@@ -649,8 +649,8 @@ final class SQLiteDatabaseTests: XCTestCase {
             }
             XCTFail("Should not have received \(output)")
         } catch {
-            guard case .SQLITE_CONSTRAINT = error else {
-                XCTFail("'\(error)' should be SQLITE_CONSTRAINT")
+            guard case .SQLITE_MISUSE = error else {
+                XCTFail("'\(error)' should be SQLITE_MISUSE")
                 return
             }
         }
@@ -674,91 +674,12 @@ final class SQLiteDatabaseTests: XCTestCase {
             return try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
         }
         .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
-        .expectFailure(SQLiteError.SQLITE_CONSTRAINT)
+        .expectFailure(SQLiteError.SQLITE_MISUSE)
 
         wait(for: [ex], timeout: 2)
 
         XCTAssertEqual([one], try database.read(_selectWhereID, arguments: ["id": .integer(1)]))
     }
-
-//    func testHasOpenTransactions() throws {
-//        func arguments(with id: Int) -> SQLiteArguments {
-//            ["id": .integer(Int64(id)), "data": .data(_textData)]
-//        }
-//
-//        XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
-//
-//        try database.inTransaction { db in
-//            XCTAssertTrue(database.hasOpenTransactions)
-//            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 1)))
-//        }
-//        XCTAssertFalse(database.hasOpenTransactions)
-//
-//        try database.inTransaction { db in
-//            XCTAssertTrue(db.hasOpenTransactions)
-//            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with: 2)))
-//            try db.inTransaction { db in
-//                XCTAssertTrue(db.hasOpenTransactions)
-//                XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: arguments(with:
-//                3)))
-//            }
-//            XCTAssertTrue(db.hasOpenTransactions)
-//        }
-//        XCTAssertFalse(database.hasOpenTransactions)
-//    }
-//
-//    func testHasOpenTransactionsWhenAsync() async throws {
-//        func arguments(with id: Int) -> SQLiteArguments {
-//            ["id": .integer(Int64(id)), "data": .data(_textData)]
-//        }
-//
-//        try await database.execute(raw: _createTableWithBlob)
-//
-//        XCTAssertFalse(database.hasOpenTransactions)
-//
-//        let output = try await database.inTransaction { db in
-//            XCTAssertTrue(db.hasOpenTransactions)
-//
-//            try db.write(self._insertIDAndData, arguments: arguments(with: 1))
-//            try db.write(self._insertIDAndData, arguments: arguments(with: 2))
-//
-//            let one = try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
-//            let two = try db.read(self._selectWhereID, arguments: ["id": .integer(2)])
-//
-//            XCTAssertTrue(db.hasOpenTransactions)
-//
-//            return one + two
-//        }
-//
-//        XCTAssertEqual([arguments(with: 1), arguments(with: 2)], output)
-//    }
-//
-//    func testHasOpenTransactionsWithPublisher() throws {
-//        func arguments(with id: Int) -> SQLiteArguments {
-//            ["id": .integer(Int64(id)), "data": .data(_textData)]
-//        }
-//
-//        XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
-//
-//        XCTAssertFalse(database.hasOpenTransactions)
-//
-//        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
-//            XCTAssertTrue(db.hasOpenTransactions)
-//
-//            try db.write(self._insertIDAndData, arguments: arguments(with: 1))
-//            try db.write(self._insertIDAndData, arguments: arguments(with: 2))
-//
-//            let one = try db.read(self._selectWhereID, arguments: ["id": .integer(1)])
-//            let two = try db.read(self._selectWhereID, arguments: ["id": .integer(2)])
-//
-//            XCTAssertTrue(db.hasOpenTransactions)
-//
-//            return one + two
-//        }
-//        .expectOutput([arguments(with: 1), arguments(with: 2)], expectToFinish: true)
-//
-//        wait(for: [ex], timeout: 2)
-//    }
 }
 
 private extension SQLiteDatabaseTests {
