@@ -2,15 +2,14 @@ import CombineTestExtensions
 @testable import SQLite
 import XCTest
 
-final class SQLiteCrossProcessMonitorTests: XCTestCase {
+final class CrossProcessChangeNotifierTests: XCTestCase {
     func testCanNotOpenASharedInMemoryDatabase() throws {
         XCTAssertThrowsError(
             try SQLiteDatabase.makeShared(path: ":memory:"),
             "Shared in-memory databases can't be created"
         ) { error in
-            guard case let .onInvalidPath(path) = (error as! SQLiteError)
+            guard case SQLiteError.SQLITE_IOERR = error
             else { return XCTFail() }
-            XCTAssertEqual(":memory:", path)
         }
     }
 
@@ -20,7 +19,6 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
             let db = try SQLiteDatabase.makeShared(path: dbPath)
             try db.write(createTable)
             XCTAssertEqual(["test"], try db.tables())
-            try db.close()
         }
     }
 
@@ -49,9 +47,6 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
             )
 
             wait(for: [ex1, ex2], timeout: 4) // Coordinated writes can be very slow
-
-            try db1.close()
-            try db2.close()
         }
     }
 
@@ -70,7 +65,7 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
             duplicateEx.isInverted = true
 
             let sub = db
-                .publisher(Test.self, getAll, tables: ["test"])
+                .publisher(Test.self, getAll)
                 .sink(
                     receiveCompletion: { _ in },
                     receiveValue: { rows in
@@ -94,8 +89,6 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
 
             wait(for: [outputEx], timeout: 2)
             wait(for: [duplicateEx], timeout: 2) // Coordinated writes can be very slow
-
-            try db.close()
         }
     }
 }
@@ -105,7 +98,7 @@ private enum Err: Error {
     case sqlite3CommandFailed
 }
 
-private extension SQLiteCrossProcessMonitorTests {
+private extension CrossProcessChangeNotifierTests {
     var createTable: SQL {
         """
         CREATE TABLE test (

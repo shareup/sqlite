@@ -1,10 +1,10 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.8
 import PackageDescription
 
 let package = Package(
     name: "SQLite",
     platforms: [
-        .macOS(.v11), .iOS(.v14), .tvOS(.v14), .watchOS(.v7),
+        .macOS(.v13), .iOS(.v16), .tvOS(.v16), .watchOS(.v9),
     ],
     products: [
         .library(
@@ -15,21 +15,26 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "5.0.0"
+            from: "5.0.2"
+        ),
+        .package(
+            url: "https://github.com/groue/GRDB.swift.git",
+            from: "6.16.0"
         ),
         .package(
             url: "https://github.com/shareup/precise-iso-8601-date-formatter.git",
-            from: "1.0.2"
+            from: "1.0.3"
         ),
         .package(
             url: "https://github.com/shareup/synchronized.git",
-            from: "4.0.0"
+            from: "4.0.1"
         ),
     ],
     targets: [
         .target(
             name: "SQLite",
             dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift"),
                 .product(
                     name: "PreciseISO8601DateFormatter",
                     package: "precise-iso-8601-date-formatter"

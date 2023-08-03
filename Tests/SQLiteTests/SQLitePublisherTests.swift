@@ -2,6 +2,7 @@ import Combine
 import CombineExtensions
 import CombineTestExtensions
 @testable import SQLite
+import SQLite3
 import XCTest
 
 final class SQLitePublisherTests: XCTestCase {
@@ -13,27 +14,36 @@ final class SQLitePublisherTests: XCTestCase {
 
         try database.execute(raw: Person.createTable)
         try database.execute(raw: Pet.createTable)
-        let encoder = SQLiteEncoder(database)
-        try encoder.encode([_person1, _person2], using: Person.insert)
-        try encoder.encode([_pet1, _pet2], using: Pet.insert)
+
+        try [_person1, _person2].forEach { person in
+            try database.write(Person.insert, arguments: person.asArguments)
+        }
+
+        try [_pet1, _pet2].forEach { pet in
+            try database.write(Pet.insert, arguments: pet.asArguments)
+        }
     }
 
     override func tearDownWithError() throws {
         try super.tearDownWithError()
-        try database.close()
+        database = nil
     }
 
     func testReceivesCompletionWithErrorGivenInvalidSQL() throws {
         let ex = database
             .publisher("NOPE;")
             .expectFailure(
-                { guard case .onPrepareStatement = $0 else { return XCTFail() } },
+                { error in
+                    guard case .SQLITE_ERROR = error else {
+                        return XCTFail("'\(error)' should be SQLITE_ERROR")
+                    }
+                },
                 failsOnOutput: true
             )
         wait(for: [ex], timeout: 0.5)
     }
 
-    func testClosingAndReopeningDatabase() throws {
+    func testSuspendingAndResumingDatabase() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
@@ -41,7 +51,7 @@ final class SQLitePublisherTests: XCTestCase {
             try db.write(Person.createTable)
 
             let ex = db
-                .publisher(Person.self, Person.getAll, tables: ["people"])
+                .publisher(Person.self, Person.getAll)
                 .removeDuplicates()
                 .expectOutput(
                     [[], [_person1], [_person1, _person2]],
@@ -50,59 +60,39 @@ final class SQLitePublisherTests: XCTestCase {
 
             try db.write(Person.insert, arguments: _person1.asArguments)
 
-            try db.close()
-            try db.reopen()
+            db.suspend()
+            db.resume()
 
             try db.write(Person.insert, arguments: _person2.asArguments)
 
             wait(for: [ex], timeout: 2)
-
-            try db.close()
         }
     }
 
-    func testRetryingWhenDatabaseIsClosed() throws {
-        let scheduler = DispatchQueue.main
-
+    func testPublishersPublishWhenDatabaseIsSuspended() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
 
             let db = try SQLiteDatabase(path: path)
             try db.execute(raw: Person.createTable)
-            let encoder = SQLiteEncoder(db)
-            try encoder.encode([_person1, _person2], using: Person.insert)
 
-            try db.close()
+            try [_person1, _person2].forEach { person in
+                try db.write(
+                    Person.insert,
+                    arguments: person.asArguments
+                )
+            }
 
-            let failureEx = expectation(description: "Should have failed twice")
-            failureEx.expectedFulfillmentCount = 2
-            failureEx.assertForOverFulfill = false // Just in case CI machines are slow
+            db.suspend()
 
             let ex = db
                 .readPublisher(Person.getAll)
-                .retryIf(
-                    { error in
-                        if error.isClosed {
-                            failureEx.fulfill()
-                            return true
-                        } else {
-                            return false
-                        }
-                    },
-                    after: .milliseconds(50),
-                    scheduler: scheduler
-                )
                 .expectOutput(
                     [_person1, _person2],
                     expectToFinish: true
                 )
 
-            wait(for: [failureEx], timeout: 2)
-            try db.reopen()
-
             wait(for: [ex], timeout: 2)
-
-            try db.close()
         }
     }
 
@@ -139,7 +129,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .expectOutput(expected)
 
         try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
@@ -153,7 +143,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .expectOutput(expected)
 
         try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
@@ -162,7 +152,7 @@ final class SQLitePublisherTests: XCTestCase {
 
     func testDeleteFirstWhere() throws {
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .filter { $0.count == 1 }
             .expectOutput([[_person2]])
 
@@ -177,7 +167,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .map { $0.map(\.name) }
             .expectOutput(expected)
 
@@ -218,7 +208,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people", "pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .removeDuplicates()
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -251,7 +241,7 @@ final class SQLitePublisherTests: XCTestCase {
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people", "pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -279,7 +269,7 @@ final class SQLitePublisherTests: XCTestCase {
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -294,27 +284,28 @@ final class SQLitePublisherTests: XCTestCase {
     }
 
     func testDoesNotPublishWhenDataHasChangedInUnobservedTable() throws {
-        var changedPetOwner2 = _petOwner2
-        var changedPet = changedPetOwner2.pet
+        var changedPet = _pet2
         changedPet.name = "NEW NAME"
-        changedPetOwner2.pet = changedPet
 
-        let expected: [[PetOwner]] = [
-            [_petOwner1, _petOwner2],
-            [_petOwner1, changedPetOwner2], // This should not be received.
+        let expected: [[Person]] = [
+            [_person1, _person2],
+            [_person1, _person2], // This should not be received.
         ]
 
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
         ex.isInverted = true
 
         try database.write(
             Pet.updateNameWithRegistrationID,
-            arguments: ["name": "NEW NAME".sqliteValue, "registration_id": "2".sqliteValue]
+            arguments: [
+                "name": changedPet.name.sqliteValue,
+                "registration_id": changedPet.registrationID.sqliteValue,
+            ]
         )
 
         wait(for: [ex], timeout: 0.1)
@@ -322,96 +313,22 @@ final class SQLitePublisherTests: XCTestCase {
         XCTAssertEqual(1, publishCount)
     }
 
-    func testPublishesForAllTablesWhenEmptyArrayIsPassed() throws {
-        var changedPetOwner1 = _petOwner1
-        changedPetOwner1.title = "NEW TITLE"
-
-        var changedPetOwner2 = _petOwner2
-        var changedPet = changedPetOwner2.pet
-        changedPet.name = "NEW NAME"
-        changedPetOwner2.pet = changedPet
-
-        let expected: [[PetOwner]] = [
-            [_petOwner1, _petOwner2],
-            [changedPetOwner1, _petOwner2],
-            [changedPetOwner1, changedPetOwner2],
-        ]
-
-        var publishCount = 0
-
-        let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll)
-            .handleEvents(receiveOutput: { _ in publishCount += 1 })
-            .expectOutput(expected, failsOnCompletion: true)
-
-        try database.write(
-            Person.updateTitleWithID,
-            arguments: ["id": changedPetOwner1.id.sqliteValue, "title": "NEW TITLE".sqliteValue]
-        )
-
-        try database.write(
-            Pet.updateNameWithRegistrationID,
-            arguments: ["name": "NEW NAME".sqliteValue, "registration_id": "2".sqliteValue]
-        )
-
-        wait(for: [ex], timeout: 2)
-
-        XCTAssertEqual(3, publishCount)
-    }
-
-    func testTouchPublishesForSpecifiedTables() throws {
-        let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
-            .expectOutput([[_person1, _person2]], failsOnCompletion: true)
-
-        let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
-            .expectOutput([
-                [_pet1, _pet2],
-                [_pet1, _pet2],
-            ], failsOnCompletion: true)
-
-        database.touch("pets")
-
-        wait(for: [peopleEx, petsEx], timeout: 2)
-    }
-
     func testTouchPublishesAllTablesWhenNoneAreSpecified() throws {
         let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .expectOutput([
                 [_person1, _person2],
                 [_person1, _person2],
             ], failsOnCompletion: true)
 
         let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
+            .publisher(Pet.self, Pet.getAll)
             .expectOutput([
                 [_pet1, _pet2],
                 [_pet1, _pet2],
             ], failsOnCompletion: true)
 
         database.touch()
-
-        wait(for: [peopleEx, petsEx], timeout: 2)
-    }
-
-    func testTouchPublishesAllTablesWhenInvalidTableNamesAreSpecified() throws {
-        let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
-            .expectOutput([
-                [_person1, _person2],
-                [_person1, _person2],
-            ], failsOnCompletion: true)
-
-        let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
-            .expectOutput([
-                [_pet1, _pet2],
-                [_pet1, _pet2],
-            ], failsOnCompletion: true)
-
-        database.touch(["not-a-table", "👋"])
 
         wait(for: [peopleEx, petsEx], timeout: 2)
     }

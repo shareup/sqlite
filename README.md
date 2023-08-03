@@ -6,7 +6,9 @@
 
 ## Introduction
 
-`SQLite` is a simple Swift wrapper around [SQLite](http://www.sqlite.org/). It is intended to act as an introduction to SQLite for Swift developers. You can read more about that [here](https://shareup.app/blog/building-a-lightweight-sqlite-wrapper-in-swift/). Database allows developers to use pure SQL to access or modify their database without forcing them to deal with all the tiresome minutia involved in configuring SQLite databases and queries or converting from Swift types to the C types that SQLite expects.
+SQLite is a simple wrapper around [GRDB](https://github.com/groue/GRDB.swift).
+
+This library started its life as a simple Swift wrapper around [SQLite](http://www.sqlite.org/) focused on allowing clients to subscribe to specific SQL queries and receive updates via Combine publishers whenever the query results changed. As time went on, though, the maintainer of this library focused his attention elsewhere. Meanwhile, GRDB continued to improve. Starting in August 2023, the maintainer of this library decided to replace the majority of its internals with GRDB, while keeping most of the external API and behavior of SQLite consistent. 
 
 ## Installation
 
@@ -17,16 +19,18 @@ To use SQLite with the Swift Package Manager, add a dependency to your Package.s
 ```swift
 let package = Package(
   dependencies: [
-    .package(url: "https://github.com/shareup/sqlite.git", .upToNextMajor(from: "18.0.0"))
+    .package(
+      url: "https://github.com/shareup/sqlite.git",
+      from: "19.0.0"
+    )
   ]
 )
 ```
 
 ## License
 
-The license for Database is the standard MIT licence. You can find it in the `LICENSE` file.
+The license for SQLite is the standard MIT licence. You can find it in the `LICENSE` file.
 
-## Alternatives
+## GRDB License
 
-- [GRDB](https://github.com/groue/GRDB.swift)
-- [SQLite.swift](https://github.com/stephencelis/SQLite.swift)
+The license for GRDB is the standard MIT license. You can find it [here](https://github.com/groue/GRDB.swift/blob/master/LICENSE).

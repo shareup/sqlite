@@ -16,28 +16,28 @@ public extension Dictionary where Dictionary.Key == String, Dictionary.Value == 
     func value<V>(for key: String) throws -> V {
         if String.self == V.self {
             guard let value = self[key]?.stringValue
-            else { throw SQLiteError.onDecodingRow(key) }
+            else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if Int.self == V.self {
-            guard let value = self[key]?.intValue else { throw SQLiteError.onDecodingRow(key) }
+            guard let value = self[key]?.intValue else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if Bool.self == V.self {
-            guard let value = self[key]?.boolValue else { throw SQLiteError.onDecodingRow(key) }
+            guard let value = self[key]?.boolValue else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if Double.self == V.self {
             guard let value = self[key]?.doubleValue
-            else { throw SQLiteError.onDecodingRow(key) }
+            else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if Data.self == V.self {
-            guard let value = self[key]?.dataValue else { throw SQLiteError.onDecodingRow(key) }
+            guard let value = self[key]?.dataValue else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if Date.self == V.self {
             guard let date = date(from: self[key]?.stringValue)
-            else { throw SQLiteError.onDecodingRow(key) }
+            else { throw SQLiteError.SQLITE_MISMATCH }
             return date as! V
         } else if Int64.self == V.self {
             guard let value = self[key]?.int64Value
-            else { throw SQLiteError.onDecodingRow(key) }
+            else { throw SQLiteError.SQLITE_MISMATCH }
             return value as! V
         } else if String?.self == V.self {
             return self[key]?.stringValue as! V
@@ -54,7 +54,7 @@ public extension Dictionary where Dictionary.Key == String, Dictionary.Value == 
         } else if Int64?.self == V.self {
             return self[key]?.int64Value as! V
         } else {
-            throw SQLiteError.onInvalidDecodingType(String(describing: V.self))
+            throw SQLiteError.SQLITE_MISMATCH
         }
     }
 }

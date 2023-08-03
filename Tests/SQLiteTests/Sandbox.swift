@@ -6,8 +6,10 @@ final class Sandbox {
     private let url: URL
 
     static func execute(_ block: (URL) throws -> Void) throws {
-        let sandbox = try Sandbox()
-        try block(sandbox.url)
+        try autoreleasepool {
+            let sandbox = try Sandbox()
+            try block(sandbox.url)
+        }
     }
 
     init() throws {
