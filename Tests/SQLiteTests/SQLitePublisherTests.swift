@@ -69,11 +69,7 @@ final class SQLitePublisherTests: XCTestCase {
         }
     }
 
-    // TODO: Delete or fix this test. Reads in WAL mode do not
-    //       cause an error to be thrown in GRDB.
-    func _testRetryingWhenDatabaseIsSuspended() throws {
-        let scheduler = DispatchQueue.main
-
+    func testPublishersPublishWhenDatabaseIsSuspended() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
 
@@ -89,27 +85,12 @@ final class SQLitePublisherTests: XCTestCase {
 
             db.suspend()
 
-            let failureEx = expectation(description: "Should have failed twice")
-            failureEx.expectedFulfillmentCount = 2
-            failureEx.assertForOverFulfill = false // Just in case CI machines are slow
-
             let ex = db
                 .readPublisher(Person.getAll)
-                .retryIf(
-                    { error in
-                        guard case .SQLITE_ABORT = error else { return false }
-                        return true
-                    },
-                    after: .milliseconds(50),
-                    scheduler: scheduler
-                )
                 .expectOutput(
                     [_person1, _person2],
                     expectToFinish: true
                 )
-
-            wait(for: [failureEx], timeout: 2)
-            db.resume()
 
             wait(for: [ex], timeout: 2)
         }

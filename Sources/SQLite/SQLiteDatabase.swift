@@ -89,6 +89,7 @@ public final class SQLiteDatabase {
             name: Self.resumeNotification,
             object: nil
         )
+        touch()
     }
 
     func suspend() {
