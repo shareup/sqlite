@@ -149,13 +149,13 @@ public extension SQLiteError {
     }
 }
 
-extension SQLiteError {
+public extension SQLiteError {
     /// Returns true if the pattern on the left matches the
     /// error on the right. Primary error codes match themselves
     /// and their extended error codes.
     ///
     /// - description: https://www.sqlite.org/rescode.html
-    public static func ~= (lhs: SQLiteError, rhs: Error) -> Bool {
+    static func ~= (lhs: SQLiteError, rhs: Error) -> Bool {
         guard let err = rhs as? SQLiteError else { return false }
         if lhs == err {
             return true
