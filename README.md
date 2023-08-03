@@ -8,7 +8,7 @@
 
 SQLite is a simple wrapper around [GRDB](https://github.com/groue/GRDB.swift).
 
-This library started its life as a simple Swift wrapper around [SQLite](http://www.sqlite.org/) focused on allowing clients to subscribe to specific SQL queries and receive updates via Combine publishers whenever the query results changed. As time went on, though, the maintainer of this library focused his attention elsewhere. Meanwhile, GRDB continued to improve. Starting in August 2023, the maintainer of this library decided to replace the majority of its internals with GRDB, while keeping most of the external API and behavior of SQLite consistent. 
+This library started its life as a simple Swift wrapper around [SQLite](http://www.sqlite.org/) focused on allowing clients to subscribe to specific SQL queries and receive updates via Combine publishers whenever the query results changed. As time went on, though, the maintainer of this library focused his attention elsewhere. Meanwhile, GRDB continued to improve. Starting in August 2023, the maintainer of this library decided to replace the majority of its internals with GRDB, while keeping most of the external API and behavior of SQLite consistent.
 
 ## Installation
 
@@ -21,7 +21,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/shareup/sqlite.git",
-      from: "20.0.0"
+      from: "20.1.0"
     )
   ]
 )

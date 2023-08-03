@@ -3,7 +3,7 @@ name: CI
 on: push
 
 jobs:
-  library:
+  test:
     runs-on: macos-13
     
     steps:
