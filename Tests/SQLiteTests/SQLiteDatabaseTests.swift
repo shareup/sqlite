@@ -92,6 +92,12 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertTrue(database.supportsJSON)
     }
 
+    func testEnforcesForeignKeyConstraints() throws {
+        XCTAssertTrue(database.enforcesForeignKeyConstraints)
+        database.enforcesForeignKeyConstraints = false
+        XCTAssertFalse(database.enforcesForeignKeyConstraints)
+    }
+
     func testAutoVacuumMode() throws {
         XCTAssertEqual(.none, database.autoVacuumMode)
 

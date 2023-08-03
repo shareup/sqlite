@@ -21,7 +21,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/shareup/sqlite.git",
-      from: "19.0.0"
+      from: "20.0.0"
     )
   ]
 )

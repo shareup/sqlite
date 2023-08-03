@@ -77,8 +77,9 @@ public final class SQLiteDatabase: @unchecked Sendable {
                 self?.triggerObservers.send()
             }
         )
+
         try checkIsSQLiteVersionSupported(sqliteVersion)
-        precondition(isForeignKeySupportEnabled)
+        precondition(enforcesForeignKeyConstraints)
 
         registerForAppNotifications()
         changeNotifier.start()
@@ -527,14 +528,29 @@ public extension SQLiteDatabase {
         }
     }
 
-    var isForeignKeySupportEnabled: Bool {
-        do {
-            guard let result = try execute(raw: "PRAGMA foreign_keys;").first
-            else { return false }
-            return result["foreign_keys"]?.boolValue ?? false
-        } catch {
-            assertionFailure("Could not get foreign_keys: \(error)")
-            return false
+    var enforcesForeignKeyConstraints: Bool {
+        get {
+            do {
+                guard let result = try execute(raw: "PRAGMA foreign_keys;").first
+                else { return false }
+                return result["foreign_keys"]?.boolValue ?? false
+            } catch {
+                assertionFailure("Could not get foreign_keys: \(error)")
+                return false
+            }
+        }
+        set {
+            do {
+                try database.writer.barrierWriteWithoutTransaction { db in
+                    let sql = "PRAGMA foreign_keys = \(newValue ? "ON" : "OFF");"
+                    let statement = try db.makeStatement(sql: sql)
+                    try statement.execute()
+                }
+            } catch {
+                assertionFailure(
+                    "Could not set foreign_keys to \(newValue): \(error)"
+                )
+            }
         }
     }
 }
@@ -625,7 +641,6 @@ private extension SQLiteDatabase {
         var config = Configuration()
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
-        config.foreignKeysEnabled = true
 
         guard path != ":memory:" else {
             do {

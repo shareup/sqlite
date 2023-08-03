@@ -97,6 +97,6 @@ struct SQLiteVersion: Comparable, CustomStringConvertible {
         self >= SQLiteVersion(major: 3, minor: 24, patch: 0) &&
             self < SQLiteVersion(major: 4, minor: 0, patch: 0)
     }
-    
+
     var description: String { "\(major).\(minor).\(patch)" }
 }
