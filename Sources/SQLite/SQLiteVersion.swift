@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 import os.log
 
-struct SQLiteVersion: Comparable {
+struct SQLiteVersion: Comparable, CustomStringConvertible {
     let major: Int
     let minor: Int
     let patch: Int
@@ -97,4 +97,6 @@ struct SQLiteVersion: Comparable {
         self >= SQLiteVersion(major: 3, minor: 24, patch: 0) &&
             self < SQLiteVersion(major: 4, minor: 0, patch: 0)
     }
+    
+    var description: String { "\(major).\(minor).\(patch)" }
 }

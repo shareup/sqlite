@@ -5,13 +5,12 @@ import os.log
 import SQLite3
 import Synchronized
 
-public final class SQLiteDatabase {
+public final class SQLiteDatabase: @unchecked Sendable {
     public static let suspendNotification = GRDB.Database.suspendNotification
     public static let resumeNotification = GRDB.Database.resumeNotification
 
     public let path: String
-
-    internal let sqliteVersion: SQLiteVersion
+    public let sqliteVersion: String
 
     private let database: Database
     private let triggerObservers = PassthroughSubject<Void, Never>()
@@ -70,14 +69,15 @@ public final class SQLiteDatabase {
     public init(path: String = ":memory:", busyTimeout: TimeInterval = 5) throws {
         database = try Self.open(at: path, busyTimeout: busyTimeout)
         self.path = path
-        sqliteVersion = try Self.getSQLiteVersion(database)
+        let sqliteVersion = try Self.getSQLiteVersion(database)
+        self.sqliteVersion = sqliteVersion.description
         changeNotifier = CrossProcessChangeNotifier(
             databasePath: path,
             onRemoteChange: { [weak self] in
                 self?.triggerObservers.send()
             }
         )
-        try checkIsSQLiteVersionSupported()
+        try checkIsSQLiteVersionSupported(sqliteVersion)
         precondition(isForeignKeySupportEnabled)
 
         registerForAppNotifications()
@@ -600,15 +600,17 @@ public extension SQLiteDatabase {
 }
 
 extension SQLiteDatabase {
-    private func checkIsSQLiteVersionSupported() throws {
-        guard sqliteVersion.isSupported else {
+    private func checkIsSQLiteVersionSupported(
+        _ version: SQLiteVersion
+    ) throws {
+        guard version.isSupported else {
             os_log(
                 "version: error=unsupported major=%lld minor=%lld patch=%lld",
                 log: log,
                 type: .error,
-                sqliteVersion.major,
-                sqliteVersion.minor,
-                sqliteVersion.patch
+                version.major,
+                version.minor,
+                version.patch
             )
             throw SQLiteError.SQLITE_ERROR
         }
