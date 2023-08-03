@@ -258,14 +258,7 @@ final class SQLiteDatabaseTests: XCTestCase {
             try db.execute(raw: self._createTableWithBlob)
             try db.write(self._insertIDAndData, arguments: one)
             return try db.read(self._selectWhereID, arguments: ["id": .integer(123)])
-        }
-        .map { input in
-            Swift.print("$$$ RECEIVED", input)
-            Swift.print("$$$ EXPECTED", one)
-            Swift.print("$$$ EQUALS", input == [one])
-            return input as [SQLiteRow]
-        }
-        .expectOutput([one], expectToFinish: true)
+        }.expectOutput([one], expectToFinish: true)
 
         wait(for: [ex], timeout: 2)
     }

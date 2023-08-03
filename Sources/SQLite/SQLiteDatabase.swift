@@ -10,10 +10,15 @@ public final class SQLiteDatabase {
     public static let resumeNotification = GRDB.Database.resumeNotification
 
     public let path: String
-    internal let sqliteVersion: SQLiteVersion
-    private let database: Database
 
-    private let queue: DispatchQueue = .init(
+    internal let sqliteVersion: SQLiteVersion
+
+    private let database: Database
+    private let triggerObservers = PassthroughSubject<Void, Never>()
+    private var changeNotifier: CrossProcessChangeNotifier!
+    private var notificationSubscriptions = Set<AnyCancellable>()
+
+    private let publisherQueue: DispatchQueue = .init(
         label: "app.shareup.sqlite.publisher-queue",
         qos: .default,
         autoreleaseFrequency: .workItem,
@@ -66,18 +71,27 @@ public final class SQLiteDatabase {
         database = try Self.open(at: path, busyTimeout: busyTimeout)
         self.path = path
         sqliteVersion = try Self.getSQLiteVersion(database)
+        changeNotifier = CrossProcessChangeNotifier(
+            databasePath: path,
+            onRemoteChange: { [weak self] in
+                self?.triggerObservers.send()
+            }
+        )
         try checkIsSQLiteVersionSupported()
         precondition(isForeignKeySupportEnabled)
+
+        registerForAppNotifications()
+        changeNotifier.start()
     }
 
-    public func resume() {
+    func resume() {
         NotificationCenter.default.post(
             name: Self.resumeNotification,
             object: nil
         )
     }
 
-    public func suspend() {
+    func suspend() {
         NotificationCenter.default.post(
             name: Self.suspendNotification,
             object: nil
@@ -94,7 +108,7 @@ public extension SQLiteDatabase {
     ) -> AnyPublisher<T, Error> {
         database
             .writer
-            .writePublisher(receiveOn: queue) { db in
+            .writePublisher(receiveOn: publisherQueue) { db in
                 var result: T!
                 try db.inSavepoint {
                     result = try block(.init(db))
@@ -113,7 +127,7 @@ public extension SQLiteDatabase {
     ) -> AnyPublisher<Void, Error> {
         database
             .writer
-            .writePublisher(receiveOn: queue) { db in
+            .writePublisher(receiveOn: publisherQueue) { db in
                 let statement = try db.cachedStatement(sql: sql)
                 try statement.execute(
                     arguments: arguments.isEmpty
@@ -132,7 +146,7 @@ public extension SQLiteDatabase {
     ) -> AnyPublisher<[SQLiteRow], Error> {
         database
             .reader
-            .readPublisher(receiveOn: queue) { db in
+            .readPublisher(receiveOn: publisherQueue) { db in
                 let statement = try db.cachedStatement(sql: sql)
                 return try Row.fetchAll(
                     statement,
@@ -373,10 +387,14 @@ public extension SQLiteDatabase {
 public extension SQLiteDatabase {
     func publisher(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        tables _: [String] = []
+        arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[SQLiteRow], Error> {
-        database.observe(sql, arguments: arguments, queue: queue)
+        database.observe(
+            sql,
+            arguments: arguments,
+            trigger: triggerObservers.eraseToAnyPublisher(),
+            queue: publisherQueue
+        )
     }
 
     // Swift favors type inference and, consequently, does not allow specializing functions at
@@ -390,8 +408,7 @@ public extension SQLiteDatabase {
     func publisher<T: SQLiteTransformable>(
         _: T.Type,
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        tables _: [String] = []
+        arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[T], Error> {
         publisher(
             sql,
@@ -401,8 +418,7 @@ public extension SQLiteDatabase {
 
     func publisher<T: SQLiteTransformable>(
         _ sql: SQL,
-        arguments: SQLiteArguments = [:],
-        tables _: [String] = []
+        arguments: SQLiteArguments = [:]
     ) -> AnyPublisher<[T], Error> {
         publisher(sql, arguments: arguments)
             .tryMap { try $0.map { try T(row: $0) } }
@@ -414,14 +430,48 @@ public extension SQLiteDatabase {
 // MARK: - Trigger updates for observers
 
 public extension SQLiteDatabase {
-    func touch(_ tableName: String) {
-        touch([tableName])
-    }
-
-    func touch(_: [String] = []) {
-        // TODO: Notify this process when another one changes.
+    func touch() {
+        triggerObservers.send()
     }
 }
+
+// MARK: - App Notifications
+
+#if canImport(UIKit)
+
+    import UIKit
+
+    private extension SQLiteDatabase {
+        private func registerForAppNotifications() {
+            let center = NotificationCenter.default
+
+            center
+                .publisher(for: UIApplication.didBecomeActiveNotification)
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    resume()
+                    changeNotifier.start()
+                }
+                .store(in: &notificationSubscriptions)
+
+            center
+                .publisher(for: UIApplication.didEnterBackgroundNotification)
+                .sink { [weak self] _ in
+                    guard let self else { return }
+                    changeNotifier.stop()
+                    suspend()
+                }
+                .store(in: &notificationSubscriptions)
+        }
+    }
+
+#else
+
+    private extension SQLiteDatabase {
+        private func registerForAppNotifications() {}
+    }
+
+#endif
 
 // MARK: - Equatable
 
@@ -699,6 +749,7 @@ private enum Database {
     func observe(
         _ sql: SQL,
         arguments: SQLiteArguments,
+        trigger: AnyPublisher<Void, Never>,
         queue: DispatchQueue
     ) -> AnyPublisher<[SQLiteRow], Error> {
         let request = SQLRequest(
@@ -706,12 +757,21 @@ private enum Database {
             arguments: arguments.statementArguments
         )
 
-        return DatabaseRegionObservation(tracking: [request])
+        let currentValuePub = Future<[SQLiteRow], Error> { result in
+            do { result(.success(try read(sql, arguments: arguments))) }
+            catch { result(.failure(error)) }
+        }.receive(on: queue)
+
+        let observationPub = DatabaseRegionObservation(tracking: [request])
             .publisher(in: writer)
             .receive(on: queue)
-            .tryMap { _ in
-                try read(sql, arguments: arguments)
-            }
+            .tryMap { _ in try read(sql, arguments: arguments) }
+
+        let triggerPub = trigger
+            .tryMap { _ in try read(sql, arguments: arguments) }
+            .receive(on: queue)
+
+        return Publishers.Merge3(currentValuePub, observationPub, triggerPub)
             .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }

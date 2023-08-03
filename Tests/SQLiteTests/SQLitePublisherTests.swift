@@ -51,10 +51,10 @@ final class SQLitePublisherTests: XCTestCase {
             try db.write(Person.createTable)
 
             let ex = db
-                .publisher(Person.self, Person.getAll, tables: ["people"])
+                .publisher(Person.self, Person.getAll)
                 .removeDuplicates()
                 .expectOutput(
-                    [ /* [], */ [_person1], [_person1, _person2]],
+                    [[], [_person1], [_person1, _person2]],
                     failsOnCompletion: true
                 )
 
@@ -148,7 +148,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .expectOutput(expected)
 
         try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
@@ -162,7 +162,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .expectOutput(expected)
 
         try database.write(Person.deleteWithID, arguments: ["id": .text(_person1.id)])
@@ -171,7 +171,7 @@ final class SQLitePublisherTests: XCTestCase {
 
     func testDeleteFirstWhere() throws {
         let ex = database
-            .publisher(Person.getAll, tables: ["people"])
+            .publisher(Person.getAll)
             .filter { $0.count == 1 }
             .expectOutput([[_person2]])
 
@@ -186,7 +186,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .map { $0.map(\.name) }
             .expectOutput(expected)
 
@@ -227,7 +227,7 @@ final class SQLitePublisherTests: XCTestCase {
         ]
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people", "pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .removeDuplicates()
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -260,7 +260,7 @@ final class SQLitePublisherTests: XCTestCase {
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people", "pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -288,7 +288,7 @@ final class SQLitePublisherTests: XCTestCase {
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["pets"])
+            .publisher(PetOwner.self, PetOwner.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
 
@@ -303,27 +303,28 @@ final class SQLitePublisherTests: XCTestCase {
     }
 
     func testDoesNotPublishWhenDataHasChangedInUnobservedTable() throws {
-        var changedPetOwner2 = _petOwner2
-        var changedPet = changedPetOwner2.pet
+        var changedPet = _pet2
         changedPet.name = "NEW NAME"
-        changedPetOwner2.pet = changedPet
 
-        let expected: [[PetOwner]] = [
-            [_petOwner1, _petOwner2],
-            [_petOwner1, changedPetOwner2], // This should not be received.
+        let expected: [[Person]] = [
+            [_person1, _person2],
+            [_person1, _person2], // This should not be received.
         ]
 
         var publishCount = 0
 
         let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
             .expectOutput(expected, failsOnCompletion: true)
         ex.isInverted = true
 
         try database.write(
             Pet.updateNameWithRegistrationID,
-            arguments: ["name": "NEW NAME".sqliteValue, "registration_id": "2".sqliteValue]
+            arguments: [
+                "name": changedPet.name.sqliteValue,
+                "registration_id": changedPet.registrationID.sqliteValue,
+            ]
         )
 
         wait(for: [ex], timeout: 0.1)
@@ -331,96 +332,22 @@ final class SQLitePublisherTests: XCTestCase {
         XCTAssertEqual(1, publishCount)
     }
 
-    func testPublishesForAllTablesWhenEmptyArrayIsPassed() throws {
-        var changedPetOwner1 = _petOwner1
-        changedPetOwner1.title = "NEW TITLE"
-
-        var changedPetOwner2 = _petOwner2
-        var changedPet = changedPetOwner2.pet
-        changedPet.name = "NEW NAME"
-        changedPetOwner2.pet = changedPet
-
-        let expected: [[PetOwner]] = [
-            [_petOwner1, _petOwner2],
-            [changedPetOwner1, _petOwner2],
-            [changedPetOwner1, changedPetOwner2],
-        ]
-
-        var publishCount = 0
-
-        let ex = database
-            .publisher(PetOwner.self, PetOwner.getAll)
-            .handleEvents(receiveOutput: { _ in publishCount += 1 })
-            .expectOutput(expected, failsOnCompletion: true)
-
-        try database.write(
-            Person.updateTitleWithID,
-            arguments: ["id": changedPetOwner1.id.sqliteValue, "title": "NEW TITLE".sqliteValue]
-        )
-
-        try database.write(
-            Pet.updateNameWithRegistrationID,
-            arguments: ["name": "NEW NAME".sqliteValue, "registration_id": "2".sqliteValue]
-        )
-
-        wait(for: [ex], timeout: 2)
-
-        XCTAssertEqual(3, publishCount)
-    }
-
-    func testTouchPublishesForSpecifiedTables() throws {
-        let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
-            .expectOutput([[_person1, _person2]], failsOnCompletion: true)
-
-        let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
-            .expectOutput([
-                [_pet1, _pet2],
-                [_pet1, _pet2],
-            ], failsOnCompletion: true)
-
-        database.touch("pets")
-
-        wait(for: [peopleEx, petsEx], timeout: 2)
-    }
-
     func testTouchPublishesAllTablesWhenNoneAreSpecified() throws {
         let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
+            .publisher(Person.self, Person.getAll)
             .expectOutput([
                 [_person1, _person2],
                 [_person1, _person2],
             ], failsOnCompletion: true)
 
         let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
+            .publisher(Pet.self, Pet.getAll)
             .expectOutput([
                 [_pet1, _pet2],
                 [_pet1, _pet2],
             ], failsOnCompletion: true)
 
         database.touch()
-
-        wait(for: [peopleEx, petsEx], timeout: 2)
-    }
-
-    func testTouchPublishesAllTablesWhenInvalidTableNamesAreSpecified() throws {
-        let peopleEx = database
-            .publisher(Person.self, Person.getAll, tables: ["people"])
-            .expectOutput([
-                [_person1, _person2],
-                [_person1, _person2],
-            ], failsOnCompletion: true)
-
-        let petsEx = database
-            .publisher(Pet.self, Pet.getAll, tables: ["pets"])
-            .expectOutput([
-                [_pet1, _pet2],
-                [_pet1, _pet2],
-            ], failsOnCompletion: true)
-
-        database.touch(["not-a-table", "👋"])
 
         wait(for: [peopleEx, petsEx], timeout: 2)
     }

@@ -2,7 +2,7 @@ import CombineTestExtensions
 @testable import SQLite
 import XCTest
 
-final class SQLiteCrossProcessMonitorTests: XCTestCase {
+final class CrossProcessChangeNotifierTests: XCTestCase {
     func testCanNotOpenASharedInMemoryDatabase() throws {
         XCTAssertThrowsError(
             try SQLiteDatabase.makeShared(path: ":memory:"),
@@ -65,7 +65,7 @@ final class SQLiteCrossProcessMonitorTests: XCTestCase {
             duplicateEx.isInverted = true
 
             let sub = db
-                .publisher(Test.self, getAll, tables: ["test"])
+                .publisher(Test.self, getAll)
                 .sink(
                     receiveCompletion: { _ in },
                     receiveValue: { rows in
@@ -98,7 +98,7 @@ private enum Err: Error {
     case sqlite3CommandFailed
 }
 
-private extension SQLiteCrossProcessMonitorTests {
+private extension CrossProcessChangeNotifierTests {
     var createTable: SQL {
         """
         CREATE TABLE test (
