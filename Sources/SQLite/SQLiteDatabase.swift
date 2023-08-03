@@ -99,6 +99,19 @@ public final class SQLiteDatabase: @unchecked Sendable {
             object: nil
         )
     }
+
+    // NOTE: This function is only really meant to be called in tests.
+    public func close() throws {
+        switch database {
+        case let .pool(pool):
+            pool.interrupt()
+            try pool.close()
+
+        case let .queue(queue):
+            queue.interrupt()
+            try queue.close()
+        }
+    }
 }
 
 // MARK: - Asynchronous queries - deprecated
