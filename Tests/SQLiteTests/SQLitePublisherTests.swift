@@ -4,6 +4,7 @@ import CombineTestExtensions
 @testable import SQLite
 import SQLite3
 import XCTest
+import Synchronized
 
 final class SQLitePublisherTests: XCTestCase {
     var database: SQLiteDatabase!
@@ -261,22 +262,38 @@ final class SQLitePublisherTests: XCTestCase {
         changedPet.name = "NEW NAME"
         changedPetOwner2.pet = changedPet
 
-        let expected: [[PetOwner]] = [
+        let expectedOutput = Locked([
             [_petOwner1, _petOwner2],
             [_petOwner1, changedPetOwner2],
-        ]
+        ])
 
         var publishCount = 0
 
         let ex = database
             .publisher(PetOwner.self, PetOwner.getAll)
             .handleEvents(receiveOutput: { _ in publishCount += 1 })
-            .expectOutput(expected, failsOnCompletion: true)
-
-        try database.write(
-            Pet.updateNameWithRegistrationID,
-            arguments: ["name": "NEW NAME".sqliteValue, "registration_id": "2".sqliteValue]
-        )
+            .expectOutput({ [db = database!] petOwners in
+                let expected = expectedOutput.access { $0.removeFirst() }
+                XCTAssertEqual(expected, petOwners)
+                switch publishCount {
+                case 1:
+                    try db.write(
+                        Pet.updateNameWithRegistrationID,
+                        arguments: [
+                            "name": "NEW NAME".sqliteValue,
+                            "registration_id": "2".sqliteValue
+                        ]
+                    )
+                    return .moreExpected
+                    
+                case 2:
+                    return .finished
+                    
+                default:
+                    XCTFail()
+                    return .finished
+                }
+            }, failsOnCompletion: true)
 
         wait(for: [ex], timeout: 2)
 
