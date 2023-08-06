@@ -787,23 +787,85 @@ private enum Database {
             sql: sql,
             arguments: arguments.statementArguments
         )
-
+        
+        // NOTE: Without waiting until every publisher receives a
+        //       demand, there's a race condition where the observation
+        //       publisher receives its demand after the current value
+        //       publisher publishes its value AND after a database
+        //       change has occured. So, the receiver would receive
+        //       the original result from the current value publisher,
+        //       but the would never receive the database change because
+        //       the observation publisher hadn't yet received a demand.
+        //       In everyday use, this is unlikely to cause an issue, but
+        //       it makes tests very flaky.
+        //
+        //       So, to solve this problem, we throttle the entire publisher
+        //       pipeline until each upstream publisher has received its
+        //       demand. Then, we publish the most recent output.
+        //       `CurrentValueSubject` is thread-safe, which means it should
+        //       be safe to mutate from multiple threads at the same time.
+        //
+        //       Adding `subscribe(on: queue)` could be a solution to this
+        //       problem, but adding a thread hop is likely to cause other
+        //       issues.
+        struct ReceivedDemands: OptionSet {
+            let rawValue: Int
+            static let currentValue = ReceivedDemands(rawValue: 1 << 0)
+            static let observation = ReceivedDemands(rawValue: 1 << 1)
+            static let trigger = ReceivedDemands(rawValue: 1 << 2)
+            
+            var isComplete: Bool {
+                self == [.currentValue, .observation, .trigger]
+            }
+        }
+        
+        let receivedDemands = CurrentValueSubject<ReceivedDemands, Never>(
+            ReceivedDemands()
+        )
+        let hasNotReceivedDemands = receivedDemands.map { !$0.isComplete }
+        
         let currentValuePub = Future<[SQLiteRow], Error> { result in
             do { result(.success(try read(sql, arguments: arguments))) }
             catch { result(.failure(error)) }
-        }.receive(on: queue)
+        }.handleEvents(receiveRequest: { _ in
+            _ = receivedDemands.value.insert(.currentValue)
+        }).receive(on: queue)
 
         let observationPub = DatabaseRegionObservation(tracking: [request])
             .publisher(in: writer)
+            .handleEvents(receiveRequest: { _ in
+                _ = receivedDemands.value.insert(.observation)
+            })
             .receive(on: queue)
             .tryMap { _ in try read(sql, arguments: arguments) }
 
         let triggerPub = trigger
+            .handleEvents(receiveRequest: { _ in
+                _ = receivedDemands.value.insert(.trigger)
+            })
             .tryMap { _ in try read(sql, arguments: arguments) }
             .receive(on: queue)
-
+        
         return Publishers.Merge3(currentValuePub, observationPub, triggerPub)
+            .throttleWhile(hasNotReceivedDemands)
             .mapToSQLiteError(sql: sql)
+            .eraseToAnyPublisher()
+    }
+}
+
+private extension Publisher {
+    func throttleWhile<Regulator: Publisher>(
+        _ regulator: Regulator
+    ) -> AnyPublisher<Output, Failure>
+    where
+        Regulator.Output == Bool,
+        Regulator.Failure == Never
+    {
+        combineLatest(regulator.setFailureType(to: Failure.self))
+            .compactMap { (output: Output, shouldThrottle: Bool) -> Output? in
+                guard !shouldThrottle else { return nil }
+                return output
+            }
             .eraseToAnyPublisher()
     }
 }
