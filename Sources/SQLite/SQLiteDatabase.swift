@@ -822,7 +822,7 @@ private enum Database {
         let receivedDemands = CurrentValueSubject<ReceivedDemands, Never>(
             ReceivedDemands()
         )
-        let hasNotReceivedDemands = receivedDemands.map { !$0.isComplete }
+        let hasReceivedDemands = receivedDemands.map { $0.isComplete }
         
         let currentValuePub = Future<[SQLiteRow], Error> { result in
             do { result(.success(try read(sql, arguments: arguments))) }
@@ -847,14 +847,14 @@ private enum Database {
             .receive(on: queue)
         
         return Publishers.Merge3(currentValuePub, observationPub, triggerPub)
-            .throttleWhile(hasNotReceivedDemands)
+            .waitUntil(hasReceivedDemands)
             .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
     }
 }
 
 private extension Publisher {
-    func throttleWhile<Regulator: Publisher>(
+    func waitUntil<Regulator: Publisher>(
         _ regulator: Regulator
     ) -> AnyPublisher<Output, Failure>
     where
@@ -862,8 +862,8 @@ private extension Publisher {
         Regulator.Failure == Never
     {
         combineLatest(regulator.setFailureType(to: Failure.self))
-            .compactMap { (output: Output, shouldThrottle: Bool) -> Output? in
-                guard !shouldThrottle else { return nil }
+            .compactMap { (output: Output, shouldPublish: Bool) -> Output? in
+                guard shouldPublish else { return nil }
                 return output
             }
             .eraseToAnyPublisher()
