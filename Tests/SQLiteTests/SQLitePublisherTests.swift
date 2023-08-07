@@ -3,8 +3,8 @@ import CombineExtensions
 import CombineTestExtensions
 @testable import SQLite
 import SQLite3
-import XCTest
 import Synchronized
+import XCTest
 
 final class SQLitePublisherTests: XCTestCase {
     var database: SQLiteDatabase!
@@ -281,14 +281,14 @@ final class SQLitePublisherTests: XCTestCase {
                         Pet.updateNameWithRegistrationID,
                         arguments: [
                             "name": "NEW NAME".sqliteValue,
-                            "registration_id": "2".sqliteValue
+                            "registration_id": "2".sqliteValue,
                         ]
                     )
                     return .moreExpected
-                    
+
                 case 2:
                     return .finished
-                    
+
                 default:
                     XCTFail()
                     return .finished

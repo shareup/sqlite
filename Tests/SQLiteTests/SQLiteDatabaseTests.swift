@@ -522,7 +522,7 @@ final class SQLiteDatabaseTests: XCTestCase {
 
         XCTAssertNoThrow(try database.execute(raw: _createTableWithFloatStringData))
 
-        let block = { (db: DatabaseProxy) in
+        let block = { (db: DatabaseProtocol) in
             for row in [one, two, three, four, five] {
                 XCTAssertNoThrow(try db.write(self._insertIDFloatStringAndData, arguments: row))
             }
@@ -582,8 +582,9 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         XCTAssertNoThrow(try database.write(_insertIDAndData, arguments: one))
 
-        let block = { try ($0 as DatabaseProxy).write(self._insertIDAndData, arguments: two) }
-        XCTAssertThrowsError(try database.inTransaction(block))
+        XCTAssertThrowsError(try database.inTransaction { db in
+            try db.write(self._insertIDAndData, arguments: two)
+        })
 
         var fetched: [SQLiteRow] = []
         XCTAssertNoThrow(
@@ -678,6 +679,133 @@ final class SQLiteDatabaseTests: XCTestCase {
         wait(for: [ex], timeout: 2)
 
         XCTAssertEqual([one], try database.read(_selectWhereID, arguments: ["id": .integer(1)]))
+    }
+
+    func testInvalidInsertOfBlobInNestedTransactionRollsBack() throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
+
+        XCTAssertThrowsError(try database.inTransaction { db in
+            XCTAssertNoThrow(try db.write(_insertIDAndData, arguments: one))
+
+            try db.inTransaction { db in
+                try db.write(self._insertIDAndData, arguments: two)
+            }
+        })
+
+        var fetched: [SQLiteRow] = []
+        XCTAssertNoThrow(
+            fetched = try database
+                .read(_selectWhereID, arguments: ["id": .integer(1)])
+        )
+        XCTAssertTrue(fetched.isEmpty)
+    }
+
+    func testInvalidInsertOfBlobInNestedTransactionRollsBackWhenAsync() async throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        do {
+            let output = try await database.inTransaction { db in
+                try db.execute(raw: self._createTableWithBlob)
+                try db.write(self._insertIDAndData, arguments: one)
+
+                return try db.inTransaction { db in
+                    try db.write(self._insertIDAndData, arguments: two) // throws
+                    return try db.read(
+                        self._selectWhereID,
+                        arguments: ["id": .integer(1)]
+                    )
+                }
+            }
+            XCTFail("Should not have received \(output)")
+        } catch {
+            guard case .SQLITE_MISUSE = error else {
+                XCTFail("'\(error)' should be SQLITE_MISUSE")
+                return
+            }
+        }
+
+        XCTAssertEqual([], try database.tables())
+    }
+
+    func testInvalidInsertOfBlobInNestedTransactionRollsBackWithPublisher() throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        let ex = database.inTransactionPublisher { db -> [SQLiteRow] in
+            try db.execute(raw: self._createTableWithBlob)
+            try db.write(self._insertIDAndData, arguments: one)
+            return try db.inTransaction { db in
+                try db.write(self._insertIDAndData, arguments: two) // throws
+                return try db.read(
+                    self._selectWhereID,
+                    arguments: ["id": .integer(1)]
+                )
+            }
+        }
+        .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
+        .expectFailure(SQLiteError.SQLITE_MISUSE)
+
+        wait(for: [ex], timeout: 2)
+
+        XCTAssertEqual([], try database.tables())
+    }
+
+    func testInvalidInsertOfBlobInNestedTransactionOnlyRollsBackTransactionWhenAsync(
+    ) async throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        do {
+            let output = try await database.inTransaction { [unowned self] db in
+                try db.execute(raw: _createTableWithBlob)
+                try db.write(_insertIDAndData, arguments: one)
+
+                return try db.inTransaction { db in
+                    try db.write(self._insertIDAndData, arguments: two) // throws
+                    return try db.read(
+                        self._selectWhereID,
+                        arguments: ["id": .integer(1)]
+                    )
+                }
+            }
+            XCTFail("Should not have received \(output)")
+        } catch {
+            guard case .SQLITE_MISUSE = error else {
+                XCTFail("'\(error)' should be SQLITE_MISUSE")
+                return
+            }
+        }
+
+        XCTAssertEqual([], try database.tables())
+    }
+
+    func testInvalidInsertOfBlobInNestedTransactionOnlyRollsBackTransactionWithPublisher(
+    ) throws {
+        let one: SQLiteArguments = ["id": .integer(1), "data": .data(_textData)]
+        let two: SQLiteArguments = ["id": .integer(2)]
+
+        let ex = database.inTransactionPublisher { [unowned self] db -> [SQLiteRow] in
+            try db.execute(raw: _createTableWithBlob)
+            try db.write(_insertIDAndData, arguments: one)
+
+            return try db.inTransaction { db in
+                try db.write(self._insertIDAndData, arguments: two) // throws
+                return try db.read(
+                    self._selectWhereID,
+                    arguments: ["id": .integer(1)]
+                )
+            }
+        }
+        .mapError { $0 as? SQLiteError ?? .SQLITE_ERROR }
+        .expectFailure(SQLiteError.SQLITE_MISUSE)
+
+        wait(for: [ex], timeout: 2)
+
+        XCTAssertEqual([], try database.tables())
     }
 }
 
