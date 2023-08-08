@@ -20,7 +20,8 @@ final class SQLiteDatabaseTests: XCTestCase {
     func testDatabaseIsCreated() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
-            let _ = try SQLiteDatabase(path: path)
+            let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
             XCTAssertTrue(FileManager().fileExists(atPath: path))
         }
     }
@@ -32,6 +33,7 @@ final class SQLiteDatabaseTests: XCTestCase {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
 
             try db.write(_createTableWithBlob)
             try db.write(_insertIDAndData, arguments: one)
@@ -63,6 +65,7 @@ final class SQLiteDatabaseTests: XCTestCase {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
 
             try db.write(_createTableWithBlob)
             try db.write(_insertIDAndData, arguments: one)

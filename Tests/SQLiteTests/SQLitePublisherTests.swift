@@ -48,6 +48,7 @@ final class SQLitePublisherTests: XCTestCase {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
 
             try db.write(Person.createTable)
 
@@ -75,6 +76,7 @@ final class SQLitePublisherTests: XCTestCase {
             let path = directory.appendingPathComponent("test.db").path
 
             let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
             try db.execute(raw: Person.createTable)
 
             try [_person1, _person2].forEach { person in
@@ -330,7 +332,7 @@ final class SQLitePublisherTests: XCTestCase {
         XCTAssertEqual(1, publishCount)
     }
 
-    func testTouchPublishesAllTablesWhenNoneAreSpecified() throws {
+    func testTouchPublishesAllTables() throws {
         let peopleEx = database
             .publisher(Person.self, Person.getAll)
             .expectOutput([
@@ -348,6 +350,42 @@ final class SQLitePublisherTests: XCTestCase {
         database.touch()
 
         wait(for: [peopleEx, petsEx], timeout: 2)
+    }
+
+    // This is a regression test. In an early version of
+    // `SQLiteDatabase.publisher`, creating a publisher outside of
+    // a `Task`, and then async-iterating over it inside of the
+    // `Task` would cause a race condition in which it was possible
+    // that changes occurring after the publisher was created but
+    // before the publisher's internal observation was created, would
+    // never be published.
+    func testPublishersCanBeUsedOnDifferentThreads() async throws {
+        let peoplePub = database.publisher(Person.self, Person.getAll)
+
+        let task = Task<[Person], Error> {
+            for try await people in peoplePub.values {
+                if people.count == 3 {
+                    return people
+                }
+            }
+            XCTFail()
+            return []
+        }
+
+        let cancellation = Task {
+            try await Task.sleep(nanoseconds: NSEC_PER_MSEC * 50)
+            task.cancel()
+        }
+
+        let person3 = Person(id: "3", name: "Wonderbread", age: 76, title: nil)
+        try await database.write(Person.insert, arguments: person3.asArguments)
+
+        let people = try await task.value
+        cancellation.cancel()
+        XCTAssertEqual(
+            [_person1, _person2, person3],
+            people
+        )
     }
 }
 

@@ -798,90 +798,103 @@ private enum Database {
         trigger: AnyPublisher<Void, Never>,
         queue: DispatchQueue
     ) -> AnyPublisher<[SQLiteRow], Error> {
-        let request = SQLRequest(
+        SQLitePublisher(
+            database: self,
             sql: sql,
-            arguments: arguments.statementArguments
+            arguments: arguments,
+            trigger: trigger,
+            queue: queue
         )
-
-        // NOTE: Without waiting until every publisher receives a
-        //       demand, there's a race condition where the observation
-        //       publisher receives its demand after the current value
-        //       publisher publishes its value AND after a database
-        //       change has occured. So, the receiver would receive
-        //       the original result from the current value publisher,
-        //       but the would never receive the database change because
-        //       the observation publisher hadn't yet received a demand.
-        //       In everyday use, this is unlikely to cause an issue, but
-        //       it makes tests very flaky.
-        //
-        //       So, to solve this problem, we throttle the entire publisher
-        //       pipeline until each upstream publisher has received its
-        //       demand. Then, we publish the most recent output.
-        //       `CurrentValueSubject` is thread-safe, which means it should
-        //       be safe to mutate from multiple threads at the same time.
-        //
-        //       Adding `subscribe(on: queue)` could be a solution to this
-        //       problem, but adding a thread hop is likely to cause other
-        //       issues.
-        struct ReceivedDemands: OptionSet {
-            let rawValue: Int
-            static let currentValue = ReceivedDemands(rawValue: 1 << 0)
-            static let observation = ReceivedDemands(rawValue: 1 << 1)
-            static let trigger = ReceivedDemands(rawValue: 1 << 2)
-
-            var isComplete: Bool {
-                self == [.currentValue, .observation, .trigger]
-            }
-        }
-
-        let receivedDemands = CurrentValueSubject<ReceivedDemands, Never>(
-            ReceivedDemands()
-        )
-        let hasReceivedDemands = receivedDemands.map(\.isComplete)
-
-        let currentValuePub = Future<[SQLiteRow], Error> { result in
-            do { result(.success(try read(sql, arguments: arguments))) }
-            catch { result(.failure(error)) }
-        }.handleEvents(receiveRequest: { _ in
-            _ = receivedDemands.value.insert(.currentValue)
-        }).receive(on: queue)
-
-        let observationPub = DatabaseRegionObservation(tracking: [request])
-            .publisher(in: writer)
-            .handleEvents(receiveRequest: { _ in
-                _ = receivedDemands.value.insert(.observation)
-            })
-            .receive(on: queue)
-            .tryMap { _ in try read(sql, arguments: arguments) }
-
-        let triggerPub = trigger
-            .handleEvents(receiveRequest: { _ in
-                _ = receivedDemands.value.insert(.trigger)
-            })
-            .tryMap { _ in try read(sql, arguments: arguments) }
-            .receive(on: queue)
-
-        return Publishers.Merge3(currentValuePub, observationPub, triggerPub)
-            .waitUntil(hasReceivedDemands)
-            .mapToSQLiteError(sql: sql)
-            .eraseToAnyPublisher()
+        .mapToSQLiteError(sql: sql)
+        .eraseToAnyPublisher()
     }
 }
 
-private extension Publisher {
-    func waitUntil<Regulator: Publisher>(
-        _ regulator: Regulator
-    ) -> AnyPublisher<Output, Failure>
-        where
-        Regulator.Output == Bool,
-        Regulator.Failure == Never
-    {
-        combineLatest(regulator.setFailureType(to: Failure.self))
-            .compactMap { (output: Output, shouldPublish: Bool) -> Output? in
-                guard shouldPublish else { return nil }
-                return output
-            }
-            .eraseToAnyPublisher()
+private final class SQLitePublisher: Publisher, @unchecked Sendable {
+    typealias Output = [SQLiteRow]
+    typealias Failure = Error
+
+    private let sql: SQL
+    private let arguments: SQLiteArguments
+    private let request: SQLRequest<Row>
+    private let trigger: AnyPublisher<Void, Never>
+    private let queue: DispatchQueue
+
+    private let subject = CurrentValueSubject<Output, Failure>([])
+    private var subscriptions = Locked<Set<AnyCancellable>>([])
+
+    init(
+        database: Database,
+        sql: SQL,
+        arguments: SQLiteArguments,
+        trigger: AnyPublisher<Void, Never>,
+        queue: DispatchQueue
+    ) {
+        self.sql = sql
+        self.arguments = arguments
+        request = SQLRequest(
+            sql: sql,
+            arguments: arguments.statementArguments
+        )
+        self.trigger = trigger
+        self.queue = queue
+
+        var didFetchInitialValue = false
+        let observationSub = DatabaseRegionObservation(tracking: [request])
+            .publisher(in: database.writer)
+            .receive(on: queue)
+            .tryMap { _ in try database.read(sql, arguments: arguments) }
+            .handleEvents(
+                receiveRequest: { [subject] demand in
+                    // NOTE: To match the previous version's behavior, we
+                    //       fetch the initial value as soon as a downstream
+                    //       publisher requests some values.
+                    guard !didFetchInitialValue,
+                          demand > .none
+                    else { return }
+
+                    didFetchInitialValue = true
+
+                    do {
+                        subject.send(try database.read(
+                            sql, arguments: arguments
+                        ))
+                    } catch {
+                        subject.send(completion: .failure(error))
+                    }
+                }
+            )
+            .sink(
+                receiveCompletion: { [subject] completion in
+                    subject.send(completion: completion)
+                },
+                receiveValue: { [subject] rows in
+                    subject.send(rows)
+                }
+            )
+
+        let triggerSub = trigger
+            .receive(on: queue)
+            .tryMap { _ in try database.read(sql, arguments: arguments) }
+            .sink(
+                receiveCompletion: { [subject] completion in
+                    subject.send(completion: completion)
+                },
+                receiveValue: { [subject] rows in
+                    subject.send(rows)
+                }
+            )
+
+        subscriptions.access { subscriptions in
+            _ = subscriptions.insert(observationSub)
+            _ = subscriptions.insert(triggerSub)
+        }
+    }
+
+    func receive<S: Subscriber>(
+        subscriber: S
+    ) where S.Input == Output, S.Failure == Failure {
+        subject.receive(subscriber: subscriber)
     }
 }
 

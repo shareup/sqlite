@@ -17,6 +17,7 @@ final class CrossProcessChangeNotifierTests: XCTestCase {
         try Sandbox.execute { directory in
             let dbPath = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase.makeShared(path: dbPath)
+            defer { try? db.close() }
             try db.write(createTable)
             XCTAssertEqual(["test"], try db.tables())
         }
@@ -28,6 +29,10 @@ final class CrossProcessChangeNotifierTests: XCTestCase {
 
             let db1 = try SQLiteDatabase.makeShared(path: dbPath)
             let db2 = try SQLiteDatabase.makeShared(path: dbPath)
+            defer {
+                try? db1.close()
+                try? db2.close()
+            }
 
             try db1.write(createTable)
 
@@ -54,6 +59,7 @@ final class CrossProcessChangeNotifierTests: XCTestCase {
         try Sandbox.execute { directory in
             let dbPath = directory.appendingPathComponent("test.db").path
             let db = try SQLiteDatabase(path: dbPath)
+            defer { try? db.close() }
             try db.write(createTable)
 
             var expected: [[Test]] = [[], [Test(1, "one")]]
