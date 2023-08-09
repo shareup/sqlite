@@ -5,7 +5,7 @@ import os.log
 import SQLite3
 import Synchronized
 
-public final class SQLiteDatabase: @unchecked Sendable {
+public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public static let suspendNotification = GRDB.Database.suspendNotification
     public static let resumeNotification = GRDB.Database.resumeNotification
 
@@ -119,14 +119,14 @@ public final class SQLiteDatabase: @unchecked Sendable {
 public extension SQLiteDatabase {
     @available(*, deprecated, message: "Use Swift Concurrency")
     func inTransactionPublisher<T>(
-        _ block: @escaping (DatabaseProxy) throws -> T
+        _ block: @escaping (DatabaseProtocol) throws -> T
     ) -> AnyPublisher<T, Error> {
         database
             .writer
             .writePublisher(receiveOn: publisherQueue) { db in
                 var result: T!
                 try db.inSavepoint {
-                    result = try block(.init(db))
+                    result = try block(DatabaseProxy(db))
                     return .commit
                 }
                 return result
@@ -190,13 +190,13 @@ public extension SQLiteDatabase {
 
 public extension SQLiteDatabase {
     func inTransaction<T>(
-        _ block: @escaping (DatabaseProxy) throws -> T
+        _ block: @escaping (DatabaseProtocol) throws -> T
     ) async throws -> T {
         do {
             return try await database.writer.write { db in
                 var result: T!
                 try db.inSavepoint {
-                    result = try block(.init(db))
+                    result = try block(DatabaseProxy(db))
                     return .commit
                 }
                 return result
@@ -312,13 +312,13 @@ public extension SQLiteDatabase {
 
 public extension SQLiteDatabase {
     func inTransaction<T>(
-        _ block: (DatabaseProxy) throws -> T
+        _ block: (DatabaseProtocol) throws -> T
     ) throws -> T {
         do {
             return try database.writer.write { db in
                 var result: T!
                 try db.inSavepoint {
-                    result = try block(.init(db))
+                    result = try block(DatabaseProxy(db))
                     return .commit
                 }
                 return result
@@ -698,21 +698,36 @@ private extension SQLiteDatabase {
     }
 }
 
-public struct DatabaseProxy {
+private struct DatabaseProxy: DatabaseProtocol {
     private let db: GRDB.Database
 
     init(_ database: GRDB.Database) {
         db = database
     }
 
-    public func read(
+    func inTransaction<T>(
+        _ block: (DatabaseProtocol) throws -> T
+    ) throws -> T {
+        let name = UUID().uuidString
+        do {
+            try db.execute(raw: "SAVEPOINT '\(name)';")
+            let res = try block(self)
+            try db.execute(raw: "RELEASE SAVEPOINT '\(name)';")
+            return res
+        } catch {
+            try db.execute(raw: "ROLLBACK TO SAVEPOINT '\(name)';")
+            try rethrowAsSQLiteError(error)
+        }
+    }
+
+    func read(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws -> [SQLiteRow] {
         try db.read(sql, arguments: arguments)
     }
 
-    public func read<T: SQLiteTransformable>(
+    func read<T: SQLiteTransformable>(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws -> [T] {
@@ -720,7 +735,7 @@ public struct DatabaseProxy {
             .map(T.init(row:))
     }
 
-    public func write(
+    func write(
         _ sql: SQL,
         arguments: SQLiteArguments = [:]
     ) throws {
@@ -728,7 +743,7 @@ public struct DatabaseProxy {
     }
 
     @discardableResult
-    public func execute(raw: SQL) throws -> [SQLiteRow] {
+    func execute(raw: SQL) throws -> [SQLiteRow] {
         try db.execute(raw: raw)
     }
 }
@@ -783,28 +798,103 @@ private enum Database {
         trigger: AnyPublisher<Void, Never>,
         queue: DispatchQueue
     ) -> AnyPublisher<[SQLiteRow], Error> {
-        let request = SQLRequest(
+        SQLitePublisher(
+            database: self,
+            sql: sql,
+            arguments: arguments,
+            trigger: trigger,
+            queue: queue
+        )
+        .mapToSQLiteError(sql: sql)
+        .eraseToAnyPublisher()
+    }
+}
+
+private final class SQLitePublisher: Publisher, @unchecked Sendable {
+    typealias Output = [SQLiteRow]
+    typealias Failure = Error
+
+    private let sql: SQL
+    private let arguments: SQLiteArguments
+    private let request: SQLRequest<Row>
+    private let trigger: AnyPublisher<Void, Never>
+    private let queue: DispatchQueue
+
+    private let subject = CurrentValueSubject<Output, Failure>([])
+    private var subscriptions = Locked<Set<AnyCancellable>>([])
+
+    init(
+        database: Database,
+        sql: SQL,
+        arguments: SQLiteArguments,
+        trigger: AnyPublisher<Void, Never>,
+        queue: DispatchQueue
+    ) {
+        self.sql = sql
+        self.arguments = arguments
+        request = SQLRequest(
             sql: sql,
             arguments: arguments.statementArguments
         )
+        self.trigger = trigger
+        self.queue = queue
 
-        let currentValuePub = Future<[SQLiteRow], Error> { result in
-            do { result(.success(try read(sql, arguments: arguments))) }
-            catch { result(.failure(error)) }
-        }.receive(on: queue)
-
-        let observationPub = DatabaseRegionObservation(tracking: [request])
-            .publisher(in: writer)
+        var didFetchInitialValue = false
+        let observationSub = DatabaseRegionObservation(tracking: [request])
+            .publisher(in: database.writer)
             .receive(on: queue)
-            .tryMap { _ in try read(sql, arguments: arguments) }
+            .tryMap { _ in try database.read(sql, arguments: arguments) }
+            .handleEvents(
+                receiveRequest: { [subject] demand in
+                    // NOTE: To match the previous version's behavior, we
+                    //       fetch the initial value as soon as a downstream
+                    //       publisher requests some values.
+                    guard !didFetchInitialValue,
+                          demand > .none
+                    else { return }
 
-        let triggerPub = trigger
-            .tryMap { _ in try read(sql, arguments: arguments) }
+                    didFetchInitialValue = true
+
+                    do {
+                        subject.send(try database.read(
+                            sql, arguments: arguments
+                        ))
+                    } catch {
+                        subject.send(completion: .failure(error))
+                    }
+                }
+            )
+            .sink(
+                receiveCompletion: { [subject] completion in
+                    subject.send(completion: completion)
+                },
+                receiveValue: { [subject] rows in
+                    subject.send(rows)
+                }
+            )
+
+        let triggerSub = trigger
             .receive(on: queue)
+            .tryMap { _ in try database.read(sql, arguments: arguments) }
+            .sink(
+                receiveCompletion: { [subject] completion in
+                    subject.send(completion: completion)
+                },
+                receiveValue: { [subject] rows in
+                    subject.send(rows)
+                }
+            )
 
-        return Publishers.Merge3(currentValuePub, observationPub, triggerPub)
-            .mapToSQLiteError(sql: sql)
-            .eraseToAnyPublisher()
+        subscriptions.access { subscriptions in
+            _ = subscriptions.insert(observationSub)
+            _ = subscriptions.insert(triggerSub)
+        }
+    }
+
+    func receive<S: Subscriber>(
+        subscriber: S
+    ) where S.Input == Output, S.Failure == Failure {
+        subject.receive(subscriber: subscriber)
     }
 }
 
