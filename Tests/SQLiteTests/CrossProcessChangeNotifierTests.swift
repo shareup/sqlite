@@ -51,7 +51,8 @@ final class CrossProcessChangeNotifierTests: XCTestCase {
                 arguments: ["id": .integer(1), "text": .text("one")]
             )
 
-            wait(for: [ex1, ex2], timeout: 4) // Coordinated writes can be very slow
+            // Coordinated writes can be very slow
+            wait(for: [ex1, ex2], timeout: 4)
         }
     }
 

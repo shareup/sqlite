@@ -52,20 +52,45 @@ final class SQLitePublisherTests: XCTestCase {
 
             try db.write(Person.createTable)
 
+            let expectedOutput = Locked([
+                (0, []),
+                (1, [_person1]),
+                (2, [_person1, _person2]),
+            ])
             let ex = db
                 .publisher(Person.self, Person.getAll)
                 .removeDuplicates()
-                .expectOutput(
-                    [[], [_person1], [_person1, _person2]],
-                    failsOnCompletion: true
-                )
+                .expectOutput({ [_person1, _person2] people in
+                    let (i, expected) = expectedOutput.access { $0.removeFirst() }
+                    XCTAssertEqual(expected, people)
 
-            try db.write(Person.insert, arguments: _person1.asArguments)
+                    switch i {
+                    case 0:
+                        try db.write(
+                            Person.insert,
+                            arguments: _person1.asArguments
+                        )
 
-            db.suspend()
-            db.resume()
+                        db.suspend()
+                        db.resume()
 
-            try db.write(Person.insert, arguments: _person2.asArguments)
+                        return .moreExpected
+
+                    case 1:
+                        try db.write(
+                            Person.insert,
+                            arguments: _person2.asArguments
+                        )
+                        return .moreExpected
+
+                    case 2:
+                        return .finished
+
+                    default:
+                        XCTFail()
+                        return .finished
+                    }
+                }, failsOnCompletion: true)
 
             wait(for: [ex], timeout: 2)
         }

@@ -8,7 +8,6 @@ final class CrossProcessChangeNotifier: NSObject, @unchecked Sendable {
     private let changeTrackerURL: URL?
     private let isStarted = Locked<Bool>(false)
 
-    private let localChange = PassthroughSubject<Void, Never>()
     private var localChangeSubscription: AnyCancellable?
 
     private let remoteChange = PassthroughSubject<Void, Never>()
@@ -25,6 +24,7 @@ final class CrossProcessChangeNotifier: NSObject, @unchecked Sendable {
 
     init(
         databasePath: String,
+        databaseChangePublisher: AnyPublisher<Void, Error>,
         onRemoteChange: @Sendable @escaping () -> Void
     ) {
         changeTrackerURL = Self.changeTrackerURL(
@@ -33,30 +33,23 @@ final class CrossProcessChangeNotifier: NSObject, @unchecked Sendable {
 
         super.init()
 
-        localChangeSubscription = localChange.throttle(
-            for: .seconds(1),
-            scheduler: RunLoop.main,
-            latest: true
-        )
-        .receive(on: queue)
-        .sink { [weak self] _ in
-            guard let self, let url = changeTrackerURL else { return }
-            let coordinator = NSFileCoordinator(filePresenter: self)
-            coordinator.coordinate(
-                writingItemAt: url,
-                options: .forReplacing,
-                error: nil,
-                byAccessor: touch
-            )
-        }
+        localChangeSubscription = databaseChangePublisher
+            .replaceError(with: ())
+            .receive(on: queue)
+            .sink { [weak self] in self?.notifyOtherProcesses() }
 
-        remoteChangeSubscription = remoteChange.throttle(
-            for: .seconds(1),
-            scheduler: RunLoop.main,
-            latest: true
-        )
-        .receive(on: queue)
-        .sink { onRemoteChange() }
+        remoteChangeSubscription = remoteChange
+            .throttle(
+                for: .seconds(1),
+                scheduler: RunLoop.main,
+                latest: true
+            )
+            .receive(on: queue)
+            .sink { onRemoteChange() }
+    }
+
+    deinit {
+        removeFilePresenter()
     }
 
     func start() {
@@ -99,7 +92,14 @@ extension CrossProcessChangeNotifier: NSFilePresenter {
     }
 
     private func notifyOtherProcesses() {
-        localChange.send()
+        guard let url = changeTrackerURL else { return }
+        let coordinator = NSFileCoordinator(filePresenter: self)
+        coordinator.coordinate(
+            writingItemAt: url,
+            options: .forReplacing,
+            error: nil,
+            byAccessor: touch
+        )
     }
 
     private var touch: (URL?) -> Void {
