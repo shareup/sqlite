@@ -73,6 +73,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         self.sqliteVersion = sqliteVersion.description
         changeNotifier = CrossProcessChangeNotifier(
             databasePath: path,
+            databaseChangePublisher: database.databaseChangePublisher(),
             onRemoteChange: { [weak self] in
                 self?.triggerObservers.send()
             }
@@ -83,6 +84,10 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
 
         registerForAppNotifications()
         changeNotifier.start()
+    }
+
+    deinit {
+        changeNotifier.stop()
     }
 
     func resume() {
@@ -808,6 +813,14 @@ private enum Database {
         .mapToSQLiteError(sql: sql)
         .eraseToAnyPublisher()
     }
+
+    func databaseChangePublisher() -> AnyPublisher<Void, Error> {
+        let observation = DatabaseRegionObservation(tracking: .fullDatabase)
+        return observation
+            .publisher(in: writer)
+            .map { _ in }
+            .eraseToAnyPublisher()
+    }
 }
 
 private final class SQLitePublisher: Publisher, @unchecked Sendable {
@@ -817,8 +830,6 @@ private final class SQLitePublisher: Publisher, @unchecked Sendable {
     private let sql: SQL
     private let arguments: SQLiteArguments
     private let request: SQLRequest<Row>
-    private let trigger: AnyPublisher<Void, Never>
-    private let queue: DispatchQueue
 
     private let subject = CurrentValueSubject<Output, Failure>([])
     private var subscriptions = Locked<Set<AnyCancellable>>([])
@@ -836,34 +847,31 @@ private final class SQLitePublisher: Publisher, @unchecked Sendable {
             sql: sql,
             arguments: arguments.statementArguments
         )
-        self.trigger = trigger
-        self.queue = queue
 
-        var didFetchInitialValue = false
+        let demands = Locked(Demands { [database, subject] in
+            do {
+                subject.send(try database.read(
+                    sql, arguments: arguments
+                ))
+            } catch {
+                subject.send(completion: .failure(error))
+            }
+        })
+
         let observationSub = DatabaseRegionObservation(tracking: [request])
             .publisher(in: database.writer)
+            .handleEvents(receiveRequest: { demand in
+                demands.access { demands in
+                    demands.receiveObservationDemand(demand)
+                }
+            })
             .receive(on: queue)
             .tryMap { _ in try database.read(sql, arguments: arguments) }
-            .handleEvents(
-                receiveRequest: { [subject] demand in
-                    // NOTE: To match the previous version's behavior, we
-                    //       fetch the initial value as soon as a downstream
-                    //       publisher requests some values.
-                    guard !didFetchInitialValue,
-                          demand > .none
-                    else { return }
-
-                    didFetchInitialValue = true
-
-                    do {
-                        subject.send(try database.read(
-                            sql, arguments: arguments
-                        ))
-                    } catch {
-                        subject.send(completion: .failure(error))
-                    }
+            .handleEvents(receiveRequest: { demand in
+                demands.access { demands in
+                    demands.receiveObservationDownstreamDemand(demand)
                 }
-            )
+            })
             .sink(
                 receiveCompletion: { [subject] completion in
                     subject.send(completion: completion)
@@ -874,6 +882,11 @@ private final class SQLitePublisher: Publisher, @unchecked Sendable {
             )
 
         let triggerSub = trigger
+            .handleEvents(receiveRequest: { demand in
+                demands.access { demands in
+                    demands.receiveTriggerDemand(demand)
+                }
+            })
             .receive(on: queue)
             .tryMap { _ in try database.read(sql, arguments: arguments) }
             .sink(
@@ -960,6 +973,65 @@ private extension GRDB.Database {
                 String(describing: error)
             )
             try rethrowAsSQLiteError(error)
+        }
+    }
+}
+
+private enum Demands {
+    struct Source: OptionSet {
+        let rawValue: Int
+
+        static let observation = Source(rawValue: 1 << 0)
+        static let observationDownstream = Source(rawValue: 1 << 1)
+        static let trigger = Source(rawValue: 1 << 2)
+
+        var isComplete: Bool {
+            self == [.observation, .observationDownstream, .trigger]
+        }
+    }
+
+    case finished
+    case waiting(Source, () -> Void)
+
+    init(_ block: @escaping () -> Void) {
+        self = .waiting(Source(), block)
+    }
+
+    mutating func receiveObservationDemand(
+        _ demand: Subscribers.Demand
+    ) {
+        receiveDemand(demand, source: .observation)
+    }
+
+    mutating func receiveObservationDownstreamDemand(
+        _ demand: Subscribers.Demand
+    ) {
+        receiveDemand(demand, source: .observationDownstream)
+    }
+
+    mutating func receiveTriggerDemand(
+        _ demand: Subscribers.Demand
+    ) {
+        receiveDemand(demand, source: .trigger)
+    }
+
+    private mutating func receiveDemand(
+        _ demand: Subscribers.Demand,
+        source: Source
+    ) {
+        guard case .waiting(var sources, let block) = self,
+              demand > .none
+        else {
+            return
+        }
+
+        sources.insert(source)
+
+        if sources.isComplete {
+            self = .finished
+            block()
+        } else {
+            self = .waiting(sources, block)
         }
     }
 }
