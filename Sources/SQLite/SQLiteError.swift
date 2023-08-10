@@ -137,7 +137,11 @@ extension SQLiteError: CustomStringConvertible {
 
 public extension SQLiteError {
     var isBusy: Bool { self == .SQLITE_BUSY }
-    var isDatabaseClosed: Bool { self == .SQLITE_MISUSE }
+    var isDatabaseClosed: Bool {
+        self == .SQLITE_MISUSE // Database is closed error
+            || self == .SQLITE_INTERRUPT // Database is suspended
+            || self == .SQLITE_ABORT // Database is suspended
+    }
 
     var isInterrupt: Bool {
         switch self {
