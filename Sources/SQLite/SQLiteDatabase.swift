@@ -107,6 +107,8 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
 
     // NOTE: This function is only really meant to be called in tests.
     public func close() throws {
+        changeNotifier.stop()
+        
         switch database {
         case let .pool(pool):
             pool.interrupt()
@@ -148,12 +150,7 @@ public extension SQLiteDatabase {
         database
             .writer
             .writePublisher(receiveOn: publisherQueue) { db in
-                let statement = try db.cachedStatement(sql: sql)
-                try statement.execute(
-                    arguments: arguments.isEmpty
-                        ? nil
-                        : arguments.statementArguments
-                )
+                try db.write(sql, arguments: arguments)
             }
             .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
@@ -167,13 +164,7 @@ public extension SQLiteDatabase {
         database
             .reader
             .readPublisher(receiveOn: publisherQueue) { db in
-                let statement = try db.cachedStatement(sql: sql)
-                return try Row.fetchAll(
-                    statement,
-                    arguments: arguments.isEmpty
-                        ? nil
-                        : arguments.statementArguments
-                ).compactMap(SQLiteRow.init(row:))
+                try db.read(sql, arguments: arguments)
             }
             .mapToSQLiteError(sql: sql)
             .eraseToAnyPublisher()
@@ -220,12 +211,7 @@ public extension SQLiteDatabase {
     func write(_ sql: SQL, arguments: SQLiteArguments = [:]) async throws {
         do {
             try await database.writer.write { db in
-                let statement = try db.cachedStatement(sql: sql)
-                try statement.execute(
-                    arguments: arguments.isEmpty
-                        ? nil
-                        : arguments.statementArguments
-                )
+                try db.write(sql, arguments: arguments)
             }
         } catch {
             os_log(
@@ -245,13 +231,7 @@ public extension SQLiteDatabase {
     ) async throws -> [SQLiteRow] {
         do {
             return try await database.reader.read { db in
-                let statement = try db.cachedStatement(sql: sql)
-                return try Row.fetchAll(
-                    statement,
-                    arguments: arguments.isEmpty
-                        ? nil
-                        : arguments.statementArguments
-                ).compactMap(SQLiteRow.init(row:))
+                try db.read(sql, arguments: arguments)
             }
         } catch {
             os_log(
@@ -271,15 +251,8 @@ public extension SQLiteDatabase {
     ) async throws -> [T] {
         do {
             return try await database.reader.read { db in
-                let statement = try db.cachedStatement(sql: sql)
-                return try Row.fetchAll(
-                    statement,
-                    arguments: arguments.isEmpty
-                        ? nil
-                        : arguments.statementArguments
-                )
-                .compactMap(SQLiteRow.init(row:))
-                .map(T.init)
+                try db.read(sql, arguments: arguments)
+                    .map(T.init)
             }
         } catch {
             os_log(
@@ -297,8 +270,7 @@ public extension SQLiteDatabase {
     func execute(raw sql: SQL) async throws -> [SQLiteRow] {
         do {
             return try await database.writer.write { db in
-                try Row.fetchAll(db, sql: sql)
-                    .compactMap(SQLiteRow.init(row:))
+                try db.execute(raw: sql)
             }
         } catch {
             os_log(
@@ -362,9 +334,7 @@ public extension SQLiteDatabase {
     func execute(raw sql: SQL) throws -> [SQLiteRow] {
         do {
             return try database.writer.write { db in
-                let statement = try db.makeStatement(sql: sql)
-                return try Row.fetchAll(statement)
-                    .compactMap(SQLiteRow.init(row:))
+                try db.execute(raw: sql)
             }
         } catch {
             os_log(
@@ -659,6 +629,10 @@ private extension SQLiteDatabase {
         var config = Configuration()
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
+        config.maximumReaderCount = max(
+            ProcessInfo.processInfo.processorCount,
+            5
+        )
 
         guard path != ":memory:" else {
             do {
