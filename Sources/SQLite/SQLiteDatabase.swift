@@ -108,7 +108,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     // NOTE: This function is only really meant to be called in tests.
     public func close() throws {
         changeNotifier.stop()
-        
+
         switch database {
         case let .pool(pool):
             pool.interrupt()
