@@ -627,6 +627,7 @@ private extension SQLiteDatabase {
         busyTimeout: TimeInterval
     ) throws -> Database {
         var config = Configuration()
+        config.journalMode = .wal
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
@@ -643,23 +644,6 @@ private extension SQLiteDatabase {
                 return .queue(queue)
             } catch {
                 try rethrowAsSQLiteError(error)
-            }
-        }
-
-        config.prepareDatabase { db in
-            if !db.configuration.readonly {
-                var flag: CInt = 1
-                let code = withUnsafeMutablePointer(to: &flag) { _flag in
-                    sqlite3_file_control(
-                        db.sqliteConnection,
-                        nil,
-                        SQLITE_FCNTL_PERSIST_WAL,
-                        _flag
-                    )
-                }
-                guard code == SQLITE_OK else {
-                    throw SQLiteError.SQLITE_CANTOPEN
-                }
             }
         }
 
