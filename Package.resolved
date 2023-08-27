@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shareup/combine-extensions.git",
       "state" : {
-        "revision" : "2575844d8c0af72671cb7f8784d7dddb2830dea6",
-        "version" : "5.0.2"
+        "revision" : "7c21588f2e029c049198db57eadbafbbeca87db2",
+        "version" : "6.0.0"
       }
     },
     {
