@@ -436,7 +436,7 @@ public extension SQLiteDatabase {
             let center = NotificationCenter.default
 
             center
-                .publisher(for: UIApplication.didBecomeActiveNotification)
+                .publisher(for: UIApplication.willEnterForegroundNotification)
                 .sink { [weak self] _ in
                     guard let self else { return }
                     resume()
