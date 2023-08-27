@@ -19,7 +19,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/groue/GRDB.swift.git",
-            from: "6.16.0"
+            from: "6.17.0"
         ),
         .package(
             url: "https://github.com/shareup/precise-iso-8601-date-formatter.git",

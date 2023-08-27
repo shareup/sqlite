@@ -436,7 +436,7 @@ public extension SQLiteDatabase {
             let center = NotificationCenter.default
 
             center
-                .publisher(for: UIApplication.didBecomeActiveNotification)
+                .publisher(for: UIApplication.willEnterForegroundNotification)
                 .sink { [weak self] _ in
                     guard let self else { return }
                     resume()
@@ -626,7 +626,13 @@ private extension SQLiteDatabase {
         at path: String,
         busyTimeout: TimeInterval
     ) throws -> Database {
+        let isInMemory: Bool = {
+            let p = path.lowercased()
+            return p == ":memory:" || p.hasPrefix("file::memory:")
+        }()
+
         var config = Configuration()
+        config.journalMode = isInMemory ? .default : .wal
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
@@ -634,7 +640,7 @@ private extension SQLiteDatabase {
             5
         )
 
-        guard path != ":memory:" else {
+        guard !isInMemory else {
             do {
                 let queue = try DatabaseQueue(
                     path: path,
@@ -643,23 +649,6 @@ private extension SQLiteDatabase {
                 return .queue(queue)
             } catch {
                 try rethrowAsSQLiteError(error)
-            }
-        }
-
-        config.prepareDatabase { db in
-            if !db.configuration.readonly {
-                var flag: CInt = 1
-                let code = withUnsafeMutablePointer(to: &flag) { _flag in
-                    sqlite3_file_control(
-                        db.sqliteConnection,
-                        nil,
-                        SQLITE_FCNTL_PERSIST_WAL,
-                        _flag
-                    )
-                }
-                guard code == SQLITE_OK else {
-                    throw SQLiteError.SQLITE_CANTOPEN
-                }
             }
         }
 
