@@ -626,8 +626,13 @@ private extension SQLiteDatabase {
         at path: String,
         busyTimeout: TimeInterval
     ) throws -> Database {
+        let isInMemory: Bool = {
+            let p = path.lowercased()
+            return p == ":memory:" || p.hasPrefix("file::memory:")
+        }()
+
         var config = Configuration()
-        config.journalMode = .wal
+        config.journalMode = isInMemory ? .default : .wal
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
@@ -635,7 +640,7 @@ private extension SQLiteDatabase {
             5
         )
 
-        guard path != ":memory:" else {
+        guard !isInMemory else {
             do {
                 let queue = try DatabaseQueue(
                     path: path,
