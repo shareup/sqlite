@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/shareup/combine-extensions.git",
-            from: "5.0.2"
+            from: "6.0.0"
         ),
         .package(
             url: "https://github.com/groue/GRDB.swift.git",
