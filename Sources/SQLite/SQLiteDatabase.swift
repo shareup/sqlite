@@ -19,7 +19,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
 
     private let publisherQueue: DispatchQueue = .init(
         label: "app.shareup.sqlite.publisher-queue",
-        qos: .default,
+        qos: .userInteractive,
         autoreleaseFrequency: .workItem,
         target: DispatchQueue.global()
     )
