@@ -207,6 +207,42 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(2, try getPageCount())
     }
 
+    func testVacuumIntoFile() throws {
+        try Sandbox.execute { directory in
+            let path1 = directory.appendingPathComponent("one.db").path
+            let db1 = try SQLiteDatabase(path: path1)
+            defer { try? db1.close() }
+
+            let path2 = directory.appendingPathComponent("two.db").path
+
+            XCTAssertEqual(.none, db1.autoVacuumMode)
+
+            try db1.execute(raw: _createTableWithBlob)
+
+            try db1.inTransaction { db in
+                try (0 ..< 1000).forEach { index in
+                    let args: SQLiteArguments = [
+                        "id": .integer(Int64(index)), "data": .data(_textData),
+                    ]
+                    try db.write(_insertIDAndData, arguments: args)
+                }
+            }
+
+            try db1.vacuum(into: path2)
+
+            XCTAssertTrue(FileManager().fileExists(atPath: path2))
+
+            let db2 = try SQLiteDatabase(path: path2)
+            defer { try? db2.close() }
+
+            XCTAssertEqual(try db1.tables(), try db2.tables())
+            XCTAssertEqual(
+                try db1.read("SELECT * FROM test;"),
+                try db2.read("SELECT * FROM test;")
+            )
+        }
+    }
+
     func testCreateTable() throws {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         let tableNames = try database.tables()

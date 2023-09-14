@@ -130,9 +130,9 @@ public extension [UInt8]? {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(bytes):
-            return .data(Data(bytes))
+            .data(Data(bytes))
         }
     }
 }
@@ -141,9 +141,9 @@ public extension Optional where Wrapped: BinaryInteger {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(int):
-            return int.sqliteValue
+            int.sqliteValue
         }
     }
 }
@@ -152,9 +152,9 @@ public extension Bool? {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(bool):
-            return bool.sqliteValue
+            bool.sqliteValue
         }
     }
 }
@@ -163,9 +163,9 @@ public extension Data? {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(data):
-            return .data(data)
+            .data(data)
         }
     }
 }
@@ -174,9 +174,9 @@ public extension Date? {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(date):
-            return date.sqliteValue
+            date.sqliteValue
         }
     }
 }
@@ -185,9 +185,9 @@ public extension Optional where Wrapped: StringProtocol {
     var sqliteValue: SQLiteValue {
         switch self {
         case .none:
-            return .null
+            .null
         case let .some(string):
-            return string.sqliteValue
+            string.sqliteValue
         }
     }
 }
