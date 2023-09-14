@@ -146,9 +146,9 @@ public extension SQLiteError {
     var isInterrupt: Bool {
         switch self {
         case SQLiteError.SQLITE_ABORT, SQLiteError.SQLITE_INTERRUPT:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 }

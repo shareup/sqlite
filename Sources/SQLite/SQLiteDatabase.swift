@@ -579,11 +579,10 @@ public extension SQLiteDatabase {
     }
 
     func incrementalVacuum(_ pages: Int? = nil) throws {
-        let sql: SQL
-        if let pages {
-            sql = "PRAGMA incremental_vacuum(\(pages));"
+        let sql: SQL = if let pages {
+            "PRAGMA incremental_vacuum(\(pages));"
         } else {
-            sql = "PRAGMA incremental_vacuum;"
+            "PRAGMA incremental_vacuum;"
         }
         try execute(raw: sql)
     }
@@ -726,15 +725,15 @@ private enum Database {
 
     var reader: AnyDatabaseReader {
         switch self {
-        case let .pool(pool): return AnyDatabaseReader(pool)
-        case let .queue(queue): return AnyDatabaseReader(queue)
+        case let .pool(pool): AnyDatabaseReader(pool)
+        case let .queue(queue): AnyDatabaseReader(queue)
         }
     }
 
     var writer: AnyDatabaseWriter {
         switch self {
-        case let .pool(pool): return AnyDatabaseWriter(pool)
-        case let .queue(queue): return AnyDatabaseWriter(queue)
+        case let .pool(pool): AnyDatabaseWriter(pool)
+        case let .queue(queue): AnyDatabaseWriter(queue)
         }
     }
 
