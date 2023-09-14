@@ -588,9 +588,13 @@ public extension SQLiteDatabase {
         try execute(raw: sql)
     }
 
-    func vacuum() throws {
+    func vacuum(into path: String? = nil) throws {
         do {
-            try database.writer.vacuum()
+            if let path {
+                try database.writer.vacuum(into: path)
+            } else {
+                try database.writer.vacuum()
+            }
         } catch {
             os_log(
                 "vacuum: error=%s",
