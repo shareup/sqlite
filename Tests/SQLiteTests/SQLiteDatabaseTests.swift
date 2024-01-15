@@ -516,7 +516,7 @@ final class SQLiteDatabaseTests: XCTestCase {
 
         try database.execute(raw: _createTableWithIDAsStringAndNullableString)
 
-        let invalidJSON = "\"text\": What is this supposed to be?"
+        let invalidJSON = "\"text\\: What is this supposed to be?"
         let write: SQL = "INSERT INTO test VALUES (:id, json(:string));"
         let args: SQLiteArguments = ["id": .text("1"), "string": .text(invalidJSON)]
         XCTAssertThrowsError(try database.write(write, arguments: args))
