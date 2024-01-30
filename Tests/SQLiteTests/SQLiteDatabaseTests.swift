@@ -17,6 +17,16 @@ final class SQLiteDatabaseTests: XCTestCase {
         database = nil
     }
 
+    func testSQLiteVersionMeetsMinimumRequirements() throws {
+        try Sandbox.execute { directory in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
+            let version = try SQLiteVersion(db)
+            XCTAssert(version.isSupported)
+        }
+    }
+
     func testDatabaseIsCreated() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
