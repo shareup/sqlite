@@ -17,7 +17,7 @@ extension [String: SQLiteValue] {
     init?(row: Row?) {
         guard let row else { return nil }
         var sqliteRow = SQLiteRow()
-        row.forEach { name, value in
+        for (name, value) in row {
             switch DatabaseValue(value: value)?.storage {
             case .none, .null:
                 sqliteRow[name] = .null

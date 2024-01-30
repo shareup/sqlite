@@ -16,11 +16,11 @@ final class SQLitePublisherTests: XCTestCase {
         try database.execute(raw: Person.createTable)
         try database.execute(raw: Pet.createTable)
 
-        try [_person1, _person2].forEach { person in
+        for person in [_person1, _person2] {
             try database.write(Person.insert, arguments: person.asArguments)
         }
 
-        try [_pet1, _pet2].forEach { pet in
+        for pet in [_pet1, _pet2] {
             try database.write(Pet.insert, arguments: pet.asArguments)
         }
     }
@@ -104,7 +104,7 @@ final class SQLitePublisherTests: XCTestCase {
             defer { try? db.close() }
             try db.execute(raw: Person.createTable)
 
-            try [_person1, _person2].forEach { person in
+            for person in [_person1, _person2] {
                 try db.write(
                     Person.insert,
                     arguments: person.asArguments

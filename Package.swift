@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "SQLite",
     platforms: [
-        .macOS(.v13), .iOS(.v16), .tvOS(.v16), .watchOS(.v9),
+        .macOS(.v13), .macCatalyst(.v16),
+        .iOS(.v16), .tvOS(.v16), .watchOS(.v9),
     ],
     products: [
         .library(
@@ -19,7 +20,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/groue/GRDB.swift.git",
-            from: "6.18.0"
+            from: "6.24.2"
         ),
         .package(
             url: "https://github.com/shareup/precise-iso-8601-date-formatter.git",
