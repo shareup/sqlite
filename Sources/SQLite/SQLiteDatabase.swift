@@ -28,8 +28,14 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         path: String,
         busyTimeout: TimeInterval = 5
     ) throws -> SQLiteDatabase {
-        guard path != ":memory:", let url = URL(string: path)
-        else { throw SQLiteError.SQLITE_IOERR }
+        guard path != ":memory:" else {
+            throw SQLiteError.SQLITE_IOERR
+        }
+
+        let url: URL? = URL(string: path)
+            ?? URL(filePath: path, directoryHint: .notDirectory)
+
+        guard let url else { throw SQLiteError.SQLITE_IOERR }
 
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var fileCoordinatorError: NSError?
@@ -636,11 +642,20 @@ private extension SQLiteDatabase {
 
         var config = Configuration()
         config.journalMode = isInMemory ? .default : .wal
+        // NOTE: GRDB recommends `defaultTransactionKind` be set
+        //       to `.immediate` in order to prevent `SQLITE_BUSY`
+        //       errors. Using `.immediate` appears to disable
+        //       automatic vacuuming.
+        //
+        // https://swiftpackageindex.com/groue/grdb.swift/v6.24.2/documentation/grdb/databasesharing#How-to-limit-the-SQLITEBUSY-error
+        config.defaultTransactionKind = isInMemory
+            ? .deferred
+            : .immediate
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
             ProcessInfo.processInfo.processorCount,
-            5
+            6
         )
 
         guard !isInMemory else {

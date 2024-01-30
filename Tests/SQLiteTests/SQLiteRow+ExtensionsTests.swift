@@ -17,7 +17,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", true),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -37,7 +37,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("nonempty", "123".data(using: .utf8)!),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -58,7 +58,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("2001", Date(timeIntervalSinceReferenceDate: 123)),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -80,7 +80,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12_345.12345),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -102,7 +102,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12_345),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -124,7 +124,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("negative", -12_345),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -144,7 +144,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("nonempty", "This is not empty"),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -165,7 +165,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -186,7 +186,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -209,7 +209,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("2001", Date(timeIntervalSinceReferenceDate: 123)),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -230,7 +230,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -251,7 +251,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -272,7 +272,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,
@@ -293,7 +293,7 @@ final class SQLiteRowExtensionsTests: XCTestCase {
             ("missing", nil),
         ]
 
-        try expected.forEach { key, expectedValue in
+        for (key, expectedValue) in expected {
             XCTAssertEqual(expectedValue, try values.value(for: key))
             XCTAssertEqual(
                 expectedValue,

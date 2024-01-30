@@ -17,6 +17,16 @@ final class SQLiteDatabaseTests: XCTestCase {
         database = nil
     }
 
+    func testSQLiteVersionMeetsMinimumRequirements() throws {
+        try Sandbox.execute { directory in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
+            let version = try SQLiteVersion(db)
+            XCTAssert(version.isSupported)
+        }
+    }
+
     func testDatabaseIsCreated() throws {
         try Sandbox.execute { directory in
             let path = directory.appendingPathComponent("test.db").path
@@ -133,7 +143,7 @@ final class SQLiteDatabaseTests: XCTestCase {
         try database.execute(raw: _createTableWithBlob)
 
         try database.inTransaction { db in
-            try (0 ..< 1000).forEach { index in
+            for index in 0 ..< 1000 {
                 let args: SQLiteArguments = [
                     "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
@@ -162,7 +172,7 @@ final class SQLiteDatabaseTests: XCTestCase {
         try database.execute(raw: _createTableWithBlob)
 
         try database.inTransaction { db in
-            try (0 ..< 1000).forEach { index in
+            for index in 0 ..< 1000 {
                 let args: SQLiteArguments = [
                     "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
@@ -191,7 +201,7 @@ final class SQLiteDatabaseTests: XCTestCase {
         try database.execute(raw: _createTableWithBlob)
 
         try database.inTransaction { db in
-            try (0 ..< 1000).forEach { index in
+            for index in 0 ..< 1000 {
                 let args: SQLiteArguments = [
                     "id": .integer(Int64(index)), "data": .data(_textData),
                 ]
@@ -220,7 +230,7 @@ final class SQLiteDatabaseTests: XCTestCase {
             try db1.execute(raw: _createTableWithBlob)
 
             try db1.inTransaction { db in
-                try (0 ..< 1000).forEach { index in
+                for index in 0 ..< 1000 {
                     let args: SQLiteArguments = [
                         "id": .integer(Int64(index)), "data": .data(_textData),
                     ]
