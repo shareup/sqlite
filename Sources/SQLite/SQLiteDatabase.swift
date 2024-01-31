@@ -648,9 +648,7 @@ private extension SQLiteDatabase {
         //       automatic vacuuming.
         //
         // https://swiftpackageindex.com/groue/grdb.swift/v6.24.2/documentation/grdb/databasesharing#How-to-limit-the-SQLITEBUSY-error
-        config.defaultTransactionKind = isInMemory
-            ? .deferred
-            : .immediate
+        config.defaultTransactionKind = .immediate
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
