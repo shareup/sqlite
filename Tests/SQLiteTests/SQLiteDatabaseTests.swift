@@ -253,6 +253,27 @@ final class SQLiteDatabaseTests: XCTestCase {
         }
     }
 
+    func testCheckpointUsingTruncate() throws {
+        try Sandbox.execute { directory in
+            let path = directory.appendingPathComponent("test.db").path
+            let db = try SQLiteDatabase(path: path)
+            defer { try? db.close() }
+
+            try db.execute(raw: _createTableWithBlob)
+
+            try db.inTransaction { db in
+                for index in 0 ..< 100 {
+                    let args: SQLiteArguments = [
+                        "id": .integer(Int64(index)), "data": .data(_textData),
+                    ]
+                    try db.write(_insertIDAndData, arguments: args)
+                }
+            }
+
+            try db.truncate()
+        }
+    }
+
     func testCreateTable() throws {
         XCTAssertNoThrow(try database.execute(raw: _createTableWithBlob))
         let tableNames = try database.tables()

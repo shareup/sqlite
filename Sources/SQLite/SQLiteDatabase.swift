@@ -111,6 +111,20 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         )
     }
 
+    public func truncate() throws {
+        switch database {
+        case let .pool(pool):
+            try pool.writeWithoutTransaction { db in
+                _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
+            }
+
+        case let .queue(queue):
+            try queue.writeWithoutTransaction { db in
+                _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
+            }
+        }
+    }
+
     // NOTE: This function is only really meant to be called in tests.
     public func close() throws {
         changeNotifier.stop()
@@ -275,7 +289,7 @@ public extension SQLiteDatabase {
     @discardableResult
     func execute(raw sql: SQL) async throws -> [SQLiteRow] {
         do {
-            return try await database.writer.write { db in
+            return try await database.writer.writeWithoutTransaction { db in
                 try db.execute(raw: sql)
             }
         } catch {
@@ -339,7 +353,7 @@ public extension SQLiteDatabase {
     @discardableResult
     func execute(raw sql: SQL) throws -> [SQLiteRow] {
         do {
-            return try database.writer.barrierWriteWithoutTransaction { db in
+            return try database.writer.writeWithoutTransaction { db in
                 try db.execute(raw: sql)
             }
         } catch {
@@ -767,7 +781,7 @@ private enum Database {
         arguments: SQLiteArguments = [:]
     ) throws {
         do {
-            try writer.write { db in
+            try writer.writeWithoutTransaction { db in
                 try db.write(sql, arguments: arguments)
             }
         } catch {
