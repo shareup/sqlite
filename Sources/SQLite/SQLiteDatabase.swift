@@ -339,7 +339,7 @@ public extension SQLiteDatabase {
     @discardableResult
     func execute(raw sql: SQL) throws -> [SQLiteRow] {
         do {
-            return try database.writer.write { db in
+            return try database.writer.barrierWriteWithoutTransaction { db in
                 try db.execute(raw: sql)
             }
         } catch {
@@ -644,8 +644,7 @@ private extension SQLiteDatabase {
         config.journalMode = isInMemory ? .default : .wal
         // NOTE: GRDB recommends `defaultTransactionKind` be set
         //       to `.immediate` in order to prevent `SQLITE_BUSY`
-        //       errors. Using `.immediate` appears to disable
-        //       automatic vacuuming.
+        //       errors.
         //
         // https://swiftpackageindex.com/groue/grdb.swift/v6.24.2/documentation/grdb/databasesharing#How-to-limit-the-SQLITEBUSY-error
         config.defaultTransactionKind = .immediate
