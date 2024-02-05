@@ -114,12 +114,12 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public func truncate() throws {
         switch database {
         case let .pool(pool):
-            try pool.writeWithoutTransaction { db in
+            try pool.barrierWriteWithoutTransaction { db in
                 _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
             }
 
         case let .queue(queue):
-            try queue.writeWithoutTransaction { db in
+            try queue.barrierWriteWithoutTransaction { db in
                 _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
             }
         }
@@ -132,6 +132,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         switch database {
         case let .pool(pool):
             pool.interrupt()
+            pool.invalidateReadOnlyConnections()
             try pool.close()
 
         case let .queue(queue):
