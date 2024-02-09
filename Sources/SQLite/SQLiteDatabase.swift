@@ -12,6 +12,13 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public let path: String
     public let sqliteVersion: String
 
+    var isInMemory: Bool { path == ":memory:" }
+
+    var url: URL {
+        URL(string: path)
+            ?? URL(filePath: path, directoryHint: .notDirectory)
+    }
+
     private let database: Database
     private let triggerObservers = PassthroughSubject<Void, Never>()
     private var changeNotifier: CrossProcessChangeNotifier!
@@ -112,16 +119,38 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     }
 
     public func truncate() throws {
-        switch database {
-        case let .pool(pool):
-            try pool.barrierWriteWithoutTransaction { db in
-                _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
-            }
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordinatorError: NSError?
+        var databaseError: Error?
 
-        case let .queue(queue):
-            try queue.barrierWriteWithoutTransaction { db in
-                _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
+        let doTruncate = { [database] in
+            switch database {
+            case let .pool(pool):
+                try pool.barrierWriteWithoutTransaction { db in
+                    _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
+                }
+
+            case let .queue(queue):
+                try queue.barrierWriteWithoutTransaction { db in
+                    _ = try db.execute(raw: "PRAGMA wal_checkpoint(TRUNCATE);")
+                }
             }
+        }
+
+        guard !isInMemory else { return try doTruncate() }
+
+        coordinator.coordinate(
+            writingItemAt: url.deletingLastPathComponent(),
+            options: .forMerging,
+            error: &coordinatorError,
+            byAccessor: { _ in
+                do { try doTruncate() }
+                catch { databaseError = error }
+            }
+        )
+
+        if let error = coordinatorError ?? databaseError {
+            throw error
         }
     }
 
@@ -129,15 +158,37 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public func close() throws {
         changeNotifier.stop()
 
-        switch database {
-        case let .pool(pool):
-            pool.interrupt()
-            pool.invalidateReadOnlyConnections()
-            try pool.close()
+        let doClose = { [database] in
+            switch database {
+            case let .pool(pool):
+                pool.interrupt()
+                pool.invalidateReadOnlyConnections()
+                try pool.close()
 
-        case let .queue(queue):
-            queue.interrupt()
-            try queue.close()
+            case let .queue(queue):
+                queue.interrupt()
+                try queue.close()
+            }
+        }
+
+        guard !isInMemory else { return try doClose() }
+
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordinatorError: NSError?
+        var databaseError: Error?
+
+        coordinator.coordinate(
+            writingItemAt: url.deletingLastPathComponent(),
+            options: .forMerging,
+            error: &coordinatorError,
+            byAccessor: { _ in
+                do { try doClose() }
+                catch { databaseError = error }
+            }
+        )
+
+        if let error = coordinatorError ?? databaseError {
+            throw error
         }
     }
 }
