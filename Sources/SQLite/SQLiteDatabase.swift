@@ -118,6 +118,28 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         )
     }
 
+    public func releaseMemory() {
+        switch database {
+        case let .pool(pool):
+            pool.releaseMemory()
+
+        case let .queue(queue):
+            queue.releaseMemory()
+        }
+    }
+
+    public func releaseMemoryEventually() {
+        switch database {
+        case let .pool(pool):
+            pool.releaseMemoryEventually()
+
+        case let .queue(queue):
+            queue.asyncWriteWithoutTransaction { db in
+                db.releaseMemory()
+            }
+        }
+    }
+
     public func truncate() throws {
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinatorError: NSError?
