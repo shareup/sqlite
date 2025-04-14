@@ -587,6 +587,33 @@ public extension SQLiteDatabase {
     }
 }
 
+// MARK: - Collating sequences
+
+public extension SQLiteDatabase {
+    func addCollation(
+        named name: String,
+        comparator: @escaping @Sendable (String, String) -> ComparisonResult
+    ) throws {
+        let collation = DatabaseCollation(
+            name,
+            function: comparator
+        )
+        try database
+            .writer
+            .barrierWriteWithoutTransaction { $0.add(collation: collation) }
+    }
+
+    func removeCollation(named name: String) throws {
+        let collation = DatabaseCollation(
+            name,
+            function: { _, _ in .orderedSame }
+        )
+        try database
+            .writer
+            .barrierWriteWithoutTransaction { $0.remove(collation: collation) }
+    }
+}
+
 // MARK: - Pragmas
 
 public extension SQLiteDatabase {
