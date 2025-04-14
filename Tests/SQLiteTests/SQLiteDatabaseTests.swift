@@ -94,6 +94,172 @@ final class SQLiteDatabaseTests: XCTestCase {
         }
     }
 
+    func testAddAndRemoveCollation() throws {
+        struct Entity: Hashable, SQLiteTransformable {
+            let id: String
+            let string: String?
+
+            init(_ id: Int, _ string: String? = nil) {
+                self.id = String(id)
+                self.string = string
+            }
+
+            init(row: SQLiteRow) throws {
+                id = try row.value(for: "id")
+                string = row.optionalValue(for: "string")
+            }
+
+            var asArguments: SQLiteArguments {
+                [
+                    "id": .text(id),
+                    "string": string.map { .text($0) } ?? .null,
+                ]
+            }
+        }
+
+        let apple = Entity(1, "Apple")
+        let banana = Entity(2, "banana")
+        let zebra = Entity(3, "Zebra")
+        let null1 = Entity(4)
+        let null2 = Entity(5)
+
+        try database.inTransaction { db in
+            try db.write(_createTableWithIDAsStringAndNullableString)
+            try [apple, banana, zebra, null1, null2]
+                .forEach { entity in
+                    try db.write(
+                        _insertIDAndString,
+                        arguments: entity.asArguments
+                    )
+                }
+        }
+
+        let selectDefaultSorted: SQL = """
+        SELECT * FROM test ORDER BY string;
+        """
+
+        let selectCustomCaseSensitiveSorted: SQL = """
+        SELECT * FROM test ORDER BY string COLLATE CUSTOM;
+        """
+
+        let selectCustomCaseInsensitiveSorted: SQL = """
+        SELECT * FROM test ORDER BY string COLLATE CUSTOM_NOCASE;
+        """
+
+        let defaultSorted: [Entity] = try database.read(selectDefaultSorted)
+        XCTAssertEqual(
+            defaultSorted,
+            [null1, null2, apple, zebra, banana]
+        )
+
+        XCTAssertThrowsError(
+            try database.read(selectCustomCaseSensitiveSorted)
+        ) { error in
+            guard case SQLiteError.SQLITE_ERROR_MISSING_COLLSEQ = error else {
+                XCTFail("Should have thrown SQLITE_ERROR")
+                return
+            }
+        }
+
+        try database.addCollation(named: "CUSTOM") { $0.compare($1) }
+        let customSorted: [Entity] = try database.read(selectCustomCaseSensitiveSorted)
+        XCTAssertEqual(
+            customSorted,
+            [null1, null2, apple, zebra, banana]
+        )
+
+        try database.addCollation(
+            named: "CUSTOM_NOCASE"
+        ) { $0.caseInsensitiveCompare($1) }
+
+        let customNoCaseSorted: [Entity] = try database
+            .read(selectCustomCaseInsensitiveSorted)
+        XCTAssertEqual(
+            customNoCaseSorted,
+            [null1, null2, apple, banana, zebra]
+        )
+
+        try database.removeCollation(named: "CUSTOM_NOCASE")
+        XCTAssertThrowsError(
+            try database.read(selectCustomCaseInsensitiveSorted)
+        ) { error in
+            guard case SQLiteError.SQLITE_ERROR_MISSING_COLLSEQ = error else {
+                XCTFail("Should have thrown SQLITE_ERROR")
+                return
+            }
+        }
+        let customSortedAfterRemovingNoCase: [Entity] = try database
+            .read(selectCustomCaseSensitiveSorted)
+        XCTAssertEqual(
+            customSortedAfterRemovingNoCase,
+            [null1, null2, apple, zebra, banana]
+        )
+    }
+
+    func testCustomLocalizedCollation() throws {
+        try database.addCollation(named: "LOCALIZED") { lhs, rhs in
+            lhs.localizedStandardCompare(rhs)
+        }
+
+        // NOTE: ([toInsert], [binary sort], [localized sort])
+        let cases: [([String], [String], [String])] = [
+            // Basic Latin
+            (
+                ["a", "A", "b", "B"],
+                ["A", "B", "a", "b"],
+                ["a", "A", "b", "B"]
+            ),
+
+            // Accented Latin
+            (
+                ["cafe", "café", "caffe", "caffè"],
+                ["cafe", "caffe", "caffè", "café"],
+                ["cafe", "café", "caffe", "caffè"]
+            ),
+
+            // Chinese
+            (
+                ["长城", "长江", "上海", "北京"],
+                ["上海", "北京", "长城", "长江"],
+                ["上海", "北京", "长城", "长江"]
+            ),
+
+            // Mixed
+            (
+                ["z", "中", "9", "ñ", "a"],
+                ["9", "a", "z", "ñ", "中"],
+                ["9", "a", "ñ", "z", "中"]
+            ),
+        ]
+
+        for (toInsert, binarySort, localizedSort) in cases {
+            try database.inTransaction { db in
+                try db.execute(raw: _createTableWithIDAsStringAndNullableString)
+                try toInsert.enumerated().forEach { id, string in
+                    try db.write(
+                        _insertIDAndString,
+                        arguments: [
+                            "id": .text(String(id)),
+                            "string": .text(string),
+                        ]
+                    )
+                }
+            }
+
+            let binarySorted: [String] = try database
+                .read("SELECT * FROM test ORDER BY string;")
+                .compactMap { $0["string"]?.stringValue }
+            XCTAssertEqual(binarySorted, binarySort)
+
+            let localizedSorted: [String] = try database
+                .read("SELECT * FROM test ORDER BY string COLLATE LOCALIZED;")
+                .compactMap { $0["string"]?.stringValue }
+            XCTAssertEqual(localizedSorted, localizedSort)
+
+            try database.write("DROP TABLE test;")
+        }
+    }
+
     func testUserVersion() throws {
         XCTAssertEqual(0, database.userVersion)
 

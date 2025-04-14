@@ -587,6 +587,33 @@ public extension SQLiteDatabase {
     }
 }
 
+// MARK: - Collating sequences
+
+public extension SQLiteDatabase {
+    func addCollation(
+        named name: String,
+        comparator: @escaping @Sendable (String, String) -> ComparisonResult
+    ) throws {
+        let collation = DatabaseCollation(
+            name,
+            function: comparator
+        )
+        try database
+            .writer
+            .barrierWriteWithoutTransaction { $0.add(collation: collation) }
+    }
+
+    func removeCollation(named name: String) throws {
+        let collation = DatabaseCollation(
+            name,
+            function: { _, _ in .orderedSame }
+        )
+        try database
+            .writer
+            .barrierWriteWithoutTransaction { $0.remove(collation: collation) }
+    }
+}
+
 // MARK: - Pragmas
 
 public extension SQLiteDatabase {
@@ -730,12 +757,6 @@ private extension SQLiteDatabase {
 
         var config = Configuration()
         config.journalMode = isInMemory ? .default : .wal
-        // NOTE: GRDB recommends `defaultTransactionKind` be set
-        //       to `.immediate` in order to prevent `SQLITE_BUSY`
-        //       errors.
-        //
-        // https://swiftpackageindex.com/groue/grdb.swift/v6.24.2/documentation/grdb/databasesharing#How-to-limit-the-SQLITEBUSY-error
-        config.defaultTransactionKind = .immediate
         config.busyMode = .timeout(busyTimeout)
         config.observesSuspensionNotifications = true
         config.maximumReaderCount = max(
