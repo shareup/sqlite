@@ -9,6 +9,17 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public static let suspendNotification = GRDB.Database.suspendNotification
     public static let resumeNotification = GRDB.Database.resumeNotification
 
+    public static let unicodeCompare =
+        GRDB.DatabaseCollation.unicodeCompare.name
+    public static let caseInsensitiveCompare =
+        GRDB.DatabaseCollation.caseInsensitiveCompare.name
+    public static let localizedCaseInsensitiveCompare =
+        GRDB.DatabaseCollation.localizedCaseInsensitiveCompare.name
+    public static let localizedCompare =
+        GRDB.DatabaseCollation.localizedCompare.name
+    public static let localizedStandardCompare =
+        GRDB.DatabaseCollation.localizedStandardCompare.name
+
     public let path: String
     public let sqliteVersion: String
 
@@ -33,7 +44,10 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
 
     public static func makeShared(
         path: String,
-        busyTimeout: TimeInterval = 5
+        busyTimeout: TimeInterval = 5,
+        collationSequences: [
+            String: @Sendable (String, String) -> ComparisonResult
+        ] = [:]
     ) throws -> SQLiteDatabase {
         guard path != ":memory:" else {
             throw SQLiteError.SQLITE_IOERR
@@ -58,7 +72,8 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
             do {
                 database = try SQLiteDatabase(
                     path: url.path,
-                    busyTimeout: busyTimeout
+                    busyTimeout: busyTimeout,
+                    collationSequences: collationSequences
                 )
             } catch {
                 databaseError = error
@@ -79,8 +94,18 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         return db
     }
 
-    public init(path: String = ":memory:", busyTimeout: TimeInterval = 5) throws {
-        database = try Self.open(at: path, busyTimeout: busyTimeout)
+    public init(
+        path: String = ":memory:",
+        busyTimeout: TimeInterval = 5,
+        collationSequences: [
+            String: @Sendable (String, String) -> ComparisonResult,
+        ] = [:]
+    ) throws {
+        database = try Self.open(
+            at: path,
+            busyTimeout: busyTimeout,
+            collationSequences: collationSequences
+        )
         self.path = path
         let sqliteVersion = try Self.getSQLiteVersion(database)
         self.sqliteVersion = sqliteVersion.description
@@ -587,33 +612,6 @@ public extension SQLiteDatabase {
     }
 }
 
-// MARK: - Collating sequences
-
-public extension SQLiteDatabase {
-    func addCollation(
-        named name: String,
-        comparator: @escaping @Sendable (String, String) -> ComparisonResult
-    ) throws {
-        let collation = DatabaseCollation(
-            name,
-            function: comparator
-        )
-        try database
-            .writer
-            .barrierWriteWithoutTransaction { $0.add(collation: collation) }
-    }
-
-    func removeCollation(named name: String) throws {
-        let collation = DatabaseCollation(
-            name,
-            function: { _, _ in .orderedSame }
-        )
-        try database
-            .writer
-            .barrierWriteWithoutTransaction { $0.remove(collation: collation) }
-    }
-}
-
 // MARK: - Pragmas
 
 public extension SQLiteDatabase {
@@ -748,7 +746,10 @@ extension SQLiteDatabase {
 private extension SQLiteDatabase {
     class func open(
         at path: String,
-        busyTimeout: TimeInterval
+        busyTimeout: TimeInterval,
+        collationSequences: [
+            String: @Sendable (String, String) -> ComparisonResult
+        ]
     ) throws -> Database {
         let isInMemory: Bool = {
             let p = path.lowercased()
@@ -763,6 +764,16 @@ private extension SQLiteDatabase {
             ProcessInfo.processInfo.processorCount,
             6
         )
+        if !collationSequences.isEmpty {
+            config.prepareDatabase { db in
+                for (name, comparator) in collationSequences {
+                    db.add(collation: DatabaseCollation(
+                        name,
+                        function: comparator
+                    ))
+                }
+            }
+        }
 
         guard !isInMemory else {
             do {
