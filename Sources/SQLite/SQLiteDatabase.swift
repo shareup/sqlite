@@ -45,9 +45,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public static func makeShared(
         path: String,
         busyTimeout: TimeInterval = 5,
-        collationSequences: [
-            String: @Sendable (String, String) -> ComparisonResult
-        ] = [:]
+        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:]
     ) throws -> SQLiteDatabase {
         guard path != ":memory:" else {
             throw SQLiteError.SQLITE_IOERR
@@ -97,9 +95,7 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public init(
         path: String = ":memory:",
         busyTimeout: TimeInterval = 5,
-        collationSequences: [
-            String: @Sendable (String, String) -> ComparisonResult,
-        ] = [:]
+        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:]
     ) throws {
         database = try Self.open(
             at: path,
@@ -747,9 +743,7 @@ private extension SQLiteDatabase {
     class func open(
         at path: String,
         busyTimeout: TimeInterval,
-        collationSequences: [
-            String: @Sendable (String, String) -> ComparisonResult
-        ]
+        collationSequences: [String: @Sendable (String, String) -> ComparisonResult]
     ) throws -> Database {
         let isInMemory: Bool = {
             let p = path.lowercased()
