@@ -45,7 +45,8 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public static func makeShared(
         path: String,
         busyTimeout: TimeInterval = 5,
-        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:]
+        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:],
+        observeLifecycleEvents: Bool = true
     ) throws -> SQLiteDatabase {
         guard path != ":memory:" else {
             throw SQLiteError.SQLITE_IOERR
@@ -71,7 +72,8 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
                 database = try SQLiteDatabase(
                     path: url.path,
                     busyTimeout: busyTimeout,
-                    collationSequences: collationSequences
+                    collationSequences: collationSequences,
+                    observeLifecycleEvents: observeLifecycleEvents
                 )
             } catch {
                 databaseError = error
@@ -95,7 +97,8 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
     public init(
         path: String = ":memory:",
         busyTimeout: TimeInterval = 5,
-        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:]
+        collationSequences: [String: @Sendable (String, String) -> ComparisonResult] = [:],
+        observeLifecycleEvents: Bool = true
     ) throws {
         database = try Self.open(
             at: path,
@@ -116,7 +119,9 @@ public final class SQLiteDatabase: DatabaseProtocol, @unchecked Sendable {
         try checkIsSQLiteVersionSupported(sqliteVersion)
         precondition(enforcesForeignKeyConstraints)
 
-        registerForAppNotifications()
+        if observeLifecycleEvents {
+            registerForAppNotifications()
+        }
         changeNotifier.start()
     }
 
